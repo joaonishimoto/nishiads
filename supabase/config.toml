@@ -1,0 +1,20 @@
+# Configuração do Supabase CLI (desenvolvimento local: `npx supabase start`).
+# Em produção, rode `npx supabase link --project-ref <ref>` e `npx supabase db push`.
+project_id = "nishiads"
+
+[api]
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+major_version = 17
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/redefinir-senha"]
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_confirmations = true
+double_confirm_changes = true

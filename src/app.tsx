@@ -1,0 +1,106 @@
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ChartNoAxesCombined, Plug, Receipt } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/features/auth/auth-provider";
+import { RedirectIfAuthenticated, RequireAuth } from "@/features/auth/route-guards";
+import { SignInPage } from "@/features/auth/pages/sign-in";
+import { SignUpPage } from "@/features/auth/pages/sign-up";
+import { ForgotPasswordPage } from "@/features/auth/pages/forgot-password";
+import { ResetPasswordPage } from "@/features/auth/pages/reset-password";
+import { WorkspaceBoundary, WorkspaceIndexRedirect } from "@/features/workspaces/workspace-context";
+import { CreateWorkspacePage } from "@/features/workspaces/pages/create-workspace";
+import { WorkspaceSettingsPage } from "@/features/workspaces/pages/workspace-settings";
+import { MembersPage } from "@/features/workspaces/pages/members";
+import { AccountPage } from "@/features/account/account-page";
+import { OverviewPage } from "@/pages/overview";
+import { ComingSoonPage } from "@/pages/coming-soon";
+import { NotFoundPage } from "@/pages/not-found";
+import { ConfigErrorPage } from "@/pages/config-error";
+import { env } from "@/lib/env";
+import { queryClient } from "@/lib/query-client";
+
+const router = createBrowserRouter([
+  {
+    element: <RedirectIfAuthenticated />,
+    children: [
+      { path: "/entrar", element: <SignInPage /> },
+      { path: "/cadastro", element: <SignUpPage /> },
+      { path: "/recuperar-senha", element: <ForgotPasswordPage /> },
+    ],
+  },
+  { path: "/redefinir-senha", element: <ResetPasswordPage /> },
+  {
+    element: <RequireAuth />,
+    children: [
+      { path: "/", element: <WorkspaceIndexRedirect /> },
+      { path: "/workspaces/novo", element: <CreateWorkspacePage /> },
+      {
+        path: "/w/:workspaceId",
+        element: <WorkspaceBoundary />,
+        children: [
+          {
+            element: <AppShell />,
+            children: [
+              { index: true, element: <OverviewPage /> },
+              {
+                path: "vendas",
+                element: (
+                  <ComingSoonPage
+                    title="Vendas"
+                    subtitle="Cada venda com a campanha, o conjunto e o criativo de origem."
+                    icon={Receipt}
+                    description="Chega na etapa 2: webhook do checkout e atribuição por UTM."
+                  />
+                ),
+              },
+              {
+                path: "campanhas",
+                element: (
+                  <ComingSoonPage
+                    title="Campanhas"
+                    subtitle="ROAS, CPA e lucro por campanha, conjunto e criativo."
+                    icon={ChartNoAxesCombined}
+                    description="Chega nas etapas 4 e 5: conexão com a Meta Ads e dashboard."
+                  />
+                ),
+              },
+              {
+                path: "integracoes",
+                element: (
+                  <ComingSoonPage
+                    title="Integrações"
+                    subtitle="Checkouts, contas de anúncio e logs de webhook."
+                    icon={Plug}
+                    description="Chega na etapa 2, começando pelo primeiro provedor de checkout."
+                  />
+                ),
+              },
+              { path: "ajustes", element: <WorkspaceSettingsPage /> },
+              { path: "ajustes/membros", element: <MembersPage /> },
+              { path: "ajustes/conta", element: <AccountPage /> },
+              { path: "*", element: <Navigate to="." replace /> },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  { path: "*", element: <NotFoundPage /> },
+]);
+
+export function App() {
+  if (!env) return <ConfigErrorPage />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <RouterProvider router={router} />
+          <Toaster position="top-center" />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
