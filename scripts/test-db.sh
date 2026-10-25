@@ -18,4 +18,6 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   echo "→ $(basename "$f")"
   "${PSQL[@]}" -f "$f"
 done
-"${PSQL[@]}" -f "$ROOT/supabase/tests/rls_test.sql"
+for t in "$ROOT"/supabase/tests/*_test.sql; do
+  "${PSQL[@]}" -f "$t"
+done

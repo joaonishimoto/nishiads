@@ -18,3 +18,7 @@ minimum_password_length = 8
 [auth.email]
 enable_confirmations = true
 double_confirm_changes = true
+
+# Provedores de checkout não mandam JWT do Supabase: a função valida a assinatura de cada um.
+[functions.webhooks]
+verify_jwt = false

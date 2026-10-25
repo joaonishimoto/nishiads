@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ChartNoAxesCombined, Plug, Receipt } from "lucide-react";
+import { ChartNoAxesCombined } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
@@ -15,6 +15,10 @@ import { CreateWorkspacePage } from "@/features/workspaces/pages/create-workspac
 import { WorkspaceSettingsPage } from "@/features/workspaces/pages/workspace-settings";
 import { MembersPage } from "@/features/workspaces/pages/members";
 import { AccountPage } from "@/features/account/account-page";
+import { SalesPage } from "@/features/sales/pages/sales-page";
+import { SaleDetailPage } from "@/features/sales/pages/sale-detail-page";
+import { IntegrationsPage } from "@/features/integrations/pages/integrations-page";
+import { WebhookLogsPage } from "@/features/integrations/pages/webhook-logs-page";
 import { OverviewPage } from "@/pages/overview";
 import { ComingSoonPage } from "@/pages/coming-soon";
 import { NotFoundPage } from "@/pages/not-found";
@@ -45,17 +49,8 @@ const router = createBrowserRouter([
             element: <AppShell />,
             children: [
               { index: true, element: <OverviewPage /> },
-              {
-                path: "vendas",
-                element: (
-                  <ComingSoonPage
-                    title="Vendas"
-                    subtitle="Cada venda com a campanha, o conjunto e o criativo de origem."
-                    icon={Receipt}
-                    description="Chega na etapa 2: webhook do checkout e atribuição por UTM."
-                  />
-                ),
-              },
+              { path: "vendas", element: <SalesPage /> },
+              { path: "vendas/:saleId", element: <SaleDetailPage /> },
               {
                 path: "campanhas",
                 element: (
@@ -67,17 +62,8 @@ const router = createBrowserRouter([
                   />
                 ),
               },
-              {
-                path: "integracoes",
-                element: (
-                  <ComingSoonPage
-                    title="Integrações"
-                    subtitle="Checkouts, contas de anúncio e logs de webhook."
-                    icon={Plug}
-                    description="Chega na etapa 2, começando pelo primeiro provedor de checkout."
-                  />
-                ),
-              },
+              { path: "integracoes", element: <IntegrationsPage /> },
+              { path: "integracoes/logs", element: <WebhookLogsPage /> },
               { path: "ajustes", element: <WorkspaceSettingsPage /> },
               { path: "ajustes/membros", element: <MembersPage /> },
               { path: "ajustes/conta", element: <AccountPage /> },

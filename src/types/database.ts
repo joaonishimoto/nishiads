@@ -234,9 +234,51 @@ export type Database = {
       products: Table<ProductRow, "workspace_id" | "name">;
       sales: Table<
         SaleRow,
-        "workspace_id" | "provider" | "external_order_id" | "status" | "gross_amount_cents"
+        "workspace_id" | "provider" | "external_order_id" | "status" | "gross_amount_cents",
+        [
+          {
+            foreignKeyName: "sales_campaign_id_workspace_id_fkey";
+            columns: ["campaign_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id", "workspace_id"];
+          },
+          {
+            foreignKeyName: "sales_adset_id_workspace_id_fkey";
+            columns: ["adset_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "adsets";
+            referencedColumns: ["id", "workspace_id"];
+          },
+          {
+            foreignKeyName: "sales_ad_id_workspace_id_fkey";
+            columns: ["ad_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "ads";
+            referencedColumns: ["id", "workspace_id"];
+          },
+          {
+            foreignKeyName: "sales_checkout_integration_id_workspace_id_fkey";
+            columns: ["checkout_integration_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "checkout_integrations";
+            referencedColumns: ["id", "workspace_id"];
+          },
+        ]
       >;
-      webhook_events: Table<WebhookEventRow, "workspace_id" | "provider" | "payload">;
+      webhook_events: Table<
+        WebhookEventRow,
+        "workspace_id" | "provider" | "payload",
+        [
+          {
+            foreignKeyName: "webhook_events_checkout_integration_id_workspace_id_fkey";
+            columns: ["checkout_integration_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "checkout_integrations";
+            referencedColumns: ["id", "workspace_id"];
+          },
+        ]
+      >;
       notification_subscriptions: Table<
         NotificationSubscriptionRow,
         "workspace_id" | "user_id" | "channel"
@@ -269,6 +311,10 @@ export type Database = {
           p_webhook_secret?: string | null;
         };
         Returns: CheckoutIntegrationRow;
+      };
+      reattribute_sales: {
+        Args: { p_workspace_id: string };
+        Returns: number;
       };
       set_checkout_integration_secret: {
         Args: { p_integration_id: string; p_webhook_secret: string };
