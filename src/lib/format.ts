@@ -29,3 +29,11 @@ export function formatDate(iso: string, timeZone = DEFAULT_TIMEZONE): string {
 export function plural(count: number, singular: string, pluralForm: string): string {
   return `${count.toLocaleString("pt-BR")} ${count === 1 ? singular : pluralForm}`;
 }
+
+/** "97,50" → 9750; vazio → 0; inválido → null. */
+export function parseReais(value: string): number | null {
+  const text = value.trim().replace(/^R\$\s*/i, "").replace(/\./g, "").replace(",", ".");
+  if (text === "") return 0;
+  const number = Number(text);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) : null;
+}

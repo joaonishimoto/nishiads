@@ -22,3 +22,7 @@ double_confirm_changes = true
 # Provedores de checkout não mandam JWT do Supabase: a função valida a assinatura de cada um.
 [functions.webhooks]
 verify_jwt = false
+
+# Valida o token do usuário dentro da função (funciona com as chaves novas do Supabase).
+[functions.push]
+verify_jwt = false

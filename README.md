@@ -40,7 +40,25 @@ No painel do Supabase → **Authentication → URL Configuration**, adicione a U
 | Vercel / `.env.local` | `VITE_SUPABASE_URL` | URL do projeto Supabase |
 | Vercel / `.env.local` | `VITE_SUPABASE_ANON_KEY` | chave pública (anon) |
 
-Segredos (token da Meta, segredos de webhook, chaves VAPID) **nunca** vão para o frontend: ficam no Supabase Vault e em `supabase secrets` a partir das próximas etapas.
+| Supabase › Edge Functions › Secrets | `VAPID_PUBLIC_KEY` | chave pública VAPID (Web Push); o app busca pela função `push` |
+| Supabase › Edge Functions › Secrets | `VAPID_PRIVATE_KEY` | chave privada VAPID |
+| Supabase › Edge Functions › Secrets | `VAPID_SUBJECT` | contato do remetente (`https://...` ou `mailto:...`) |
+
+Segredos (token da Meta, segredos de webhook, chave VAPID privada) **nunca** vão para o frontend: ficam no Supabase Vault e nos secrets das Edge Functions.
+
+Para gerar um par VAPID novo:
+
+```bash
+node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurve:"prime256v1"});console.log("VAPID_PUBLIC_KEY="+k.publicKey.export({format:"der",type:"spki"}).subarray(-65).toString("base64url"));console.log("VAPID_PRIVATE_KEY="+k.privateKey.export({format:"jwk"}).d)'
+```
+
+## Web Push
+
+- `public/sw.js` mostra a notificação e abre a venda ao tocar.
+- Ajustes › Notificações ativa o push neste navegador, lista seus dispositivos e define o que notificar: tipos, valor mínimo, horário de silêncio e som.
+- A função `webhooks` notifica depois de gravar a venda. `notification_log` garante um push por venda e tipo, mesmo que o checkout reenvie o webhook.
+- A criptografia do payload (RFC 8291) e o JWT VAPID são feitos com Web Crypto, sem dependências, e testados com o vetor oficial da RFC.
+- No iPhone, o push só funciona com o app instalado na Tela de Início (iOS 16.4+).
 
 ## Testes
 

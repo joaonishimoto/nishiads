@@ -8,6 +8,7 @@ export function SettingsNav() {
   const items = [
     { to: base, label: "Workspace", end: true },
     { to: `${base}/membros`, label: "Membros", end: false },
+    { to: `${base}/notificacoes`, label: "Notificações", end: false },
     { to: `${base}/conta`, label: "Minha conta", end: false },
   ];
   return (

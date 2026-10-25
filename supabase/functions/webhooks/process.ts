@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdapter } from "../_shared/checkout/registry.ts";
 import { errorMessage, log } from "../_shared/log.ts";
+import { saleNotificationKind } from "../_shared/notify/messages.ts";
+import { notifySale } from "../_shared/notify/sale-notifications.ts";
 
 const MAX_ATTEMPTS = 5;
 
@@ -60,6 +62,17 @@ export async function processWebhookEvent(admin: SupabaseClient, eventId: number
       .eq("id", event.id);
 
     log("info", "webhook_event_processed", { eventId, workspaceId: event.workspace_id, outcome });
+
+    // Push só quando a venda é nova ou muda de status; falha no push não reprocessa o evento.
+    const sale = outcome as { sale_id: string; status: string; previous_status: string | null; inserted: boolean };
+    const kind = saleNotificationKind(sale.status);
+    if (kind && (sale.inserted || sale.status !== sale.previous_status)) {
+      try {
+        await notifySale(admin, sale.sale_id, kind);
+      } catch (cause) {
+        log("error", "sale_notify_failed", { eventId, saleId: sale.sale_id, error: errorMessage(cause) });
+      }
+    }
   } catch (cause) {
     const message = errorMessage(cause);
     await admin
