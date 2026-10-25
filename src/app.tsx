@@ -7,8 +7,6 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider } from "@/features/auth/auth-provider";
 import { RedirectIfAuthenticated, RequireAuth } from "@/features/auth/route-guards";
 import { SignInPage } from "@/features/auth/pages/sign-in";
-import { SignUpPage } from "@/features/auth/pages/sign-up";
-import { ForgotPasswordPage } from "@/features/auth/pages/forgot-password";
 import { ResetPasswordPage } from "@/features/auth/pages/reset-password";
 import { WorkspaceBoundary, WorkspaceIndexRedirect } from "@/features/workspaces/workspace-context";
 import { CreateWorkspacePage } from "@/features/workspaces/pages/create-workspace";
@@ -31,8 +29,6 @@ const router = createBrowserRouter([
     element: <RedirectIfAuthenticated />,
     children: [
       { path: "/entrar", element: <SignInPage /> },
-      { path: "/cadastro", element: <SignUpPage /> },
-      { path: "/recuperar-senha", element: <ForgotPasswordPage /> },
     ],
   },
   { path: "/redefinir-senha", element: <ResetPasswordPage /> },
