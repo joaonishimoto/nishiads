@@ -1,0 +1,55 @@
+export type CheckoutProvider = "kiwify" | "hotmart" | "stripe" | "eduzz" | "generic";
+export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "canceled";
+
+/** Formato interno de `sales`, comum a todos os provedores. */
+export interface NormalizedSale {
+  external_order_id: string;
+  status: SaleStatus;
+  gross_amount_cents: number;
+  net_amount_cents: number | null;
+  currency: string;
+  external_product_id: string | null;
+  product_name: string | null;
+  customer_email_hash: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  paid_at: string | null;
+  refunded_at: string | null;
+}
+
+export interface VerifyInput {
+  rawBody: string;
+  url: URL;
+  headers: Headers;
+  /** Segredo do Vault configurado na integração (token da Kiwify, hottok, whsec_...). */
+  secret: string | null;
+}
+
+export type VerifyResult = { ok: true } | { ok: false; reason: string };
+
+export type NormalizeResult =
+  | { kind: "sale"; sale: NormalizedSale }
+  | { kind: "ignored"; reason: string };
+
+export interface EventSummary {
+  eventType: string | null;
+  externalOrderId: string | null;
+}
+
+/**
+ * Adapter de um provedor de checkout. Para adicionar um provedor: implemente esta
+ * interface em `checkout/<provedor>.ts` e registre em `checkout/registry.ts`.
+ */
+export interface CheckoutAdapter {
+  provider: CheckoutProvider;
+  /** Assinatura/token obrigatório: integração sem segredo rejeita tudo. */
+  requiresSecret: boolean;
+  verify(input: VerifyInput): Promise<VerifyResult>;
+  /** Remove dados pessoais antes de gravar (LGPD). O resultado ainda deve ser normalizável. */
+  redact(payload: unknown): Promise<unknown>;
+  summarize(payload: unknown): EventSummary;
+  normalize(payload: unknown): Promise<NormalizeResult>;
+}

@@ -1,0 +1,22 @@
+{
+  "order_id": "b3f1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+  "order_ref": "KwQfR2a",
+  "order_status": "paid",
+  "webhook_event_type": "order_approved",
+  "payment_method": "pix",
+  "approved_date": "2026-10-25 19:42",
+  "created_at": "2026-10-25 19:40",
+  "updated_at": "2026-10-25 19:42",
+  "Product": { "product_id": "8f1d2c3b-aaaa-4bbb-8ccc-123456789abc", "product_name": "Curso Tráfego Pago do Zero" },
+  "Customer": { "full_name": "Cliente Teste", "email": "cliente.teste@exemplo.com", "mobile": "+5511999999999", "CPF": "12345678909" },
+  "Commissions": { "charge_amount": 19700, "product_base_price": 19700, "kiwify_fee": 1970, "my_commission": 17730, "currency": "BRL" },
+  "TrackingParameters": {
+    "src": null,
+    "sck": null,
+    "utm_source": "FB",
+    "utm_medium": "Lookalike 1% Compradores|120211111111111111",
+    "utm_campaign": "[VENDAS] Black Friday|120200000000000000",
+    "utm_content": "Vídeo depoimento 01|120222222222222222",
+    "utm_term": "Instagram_Reels"
+  }
+}
