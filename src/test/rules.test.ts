@@ -3,13 +3,19 @@ import { resetPasswordSchema } from "@/features/auth/schemas";
 import { safeNext } from "@/features/auth/route-guards";
 import { assignableRoles, canManageMember, inviteSchema, workspaceSchema } from "@/features/workspaces/schemas";
 import { friendlyError } from "@/lib/errors";
-import { formatMoney, plural } from "@/lib/format";
+import { formatMoney, parseReais, plural } from "@/lib/format";
 import { validate } from "@/lib/form";
 
 describe("formatação pt-BR", () => {
   it("formata centavos em BRL", () => {
     expect(formatMoney(19700)).toBe("R$ 197,00");
     expect(formatMoney(123456789)).toBe("R$ 1.234.567,89");
+  });
+  it("lê valores em reais digitados", () => {
+    expect(parseReais("97,50")).toBe(9750);
+    expect(parseReais("R$ 1.234,00")).toBe(123400);
+    expect(parseReais("")).toBe(0);
+    expect(parseReais("abc")).toBeNull();
   });
   it("pluraliza", () => {
     expect(plural(1, "venda", "vendas")).toBe("1 venda");

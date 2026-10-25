@@ -13,6 +13,7 @@ import { CreateWorkspacePage } from "@/features/workspaces/pages/create-workspac
 import { WorkspaceSettingsPage } from "@/features/workspaces/pages/workspace-settings";
 import { MembersPage } from "@/features/workspaces/pages/members";
 import { AccountPage } from "@/features/account/account-page";
+import { NotificationsPage } from "@/features/notifications/pages/notifications-page";
 import { SalesPage } from "@/features/sales/pages/sales-page";
 import { SaleDetailPage } from "@/features/sales/pages/sale-detail-page";
 import { IntegrationsPage } from "@/features/integrations/pages/integrations-page";
@@ -62,6 +63,7 @@ const router = createBrowserRouter([
               { path: "integracoes/logs", element: <WebhookLogsPage /> },
               { path: "ajustes", element: <WorkspaceSettingsPage /> },
               { path: "ajustes/membros", element: <MembersPage /> },
+              { path: "ajustes/notificacoes", element: <NotificationsPage /> },
               { path: "ajustes/conta", element: <AccountPage /> },
               { path: "*", element: <Navigate to="." replace /> },
             ],

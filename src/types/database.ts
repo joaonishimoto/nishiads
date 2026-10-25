@@ -320,6 +320,16 @@ export type Database = {
         Args: { p_integration_id: string; p_webhook_secret: string };
         Returns: undefined;
       };
+      register_push_subscription: {
+        Args: {
+          p_workspace_id: string;
+          p_endpoint: string;
+          p_p256dh: string;
+          p_auth: string;
+          p_user_agent?: string | null;
+        };
+        Returns: string;
+      };
     };
     Enums: {
       workspace_role: WorkspaceRole;
