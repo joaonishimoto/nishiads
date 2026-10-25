@@ -1,0 +1,334 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Nishiads Design System (herdado da marca Nishistack)
+ * Paleta primitiva: creme quase branco + azul tecnológico.
+ * Componentes usam apenas tokens semânticos — nunca primitivas diretamente.
+ */
+
+@theme inline {
+  --radius-sm: var(--radius-sm-token);
+  --radius-md: var(--radius-md-token);
+  --radius-lg: var(--radius-lg-token);
+  --radius-xl: var(--radius-xl-token);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--danger-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input-border);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+  --color-border-strong: var(--border-strong);
+  --color-input-hover: var(--input-border-hover);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-danger-hover: var(--danger-hover);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-overlay: var(--overlay);
+
+  /* Texto de tom sobre fundos tingidos (selos, avisos): sempre ≥ 4,5:1. */
+  --color-success-strong: var(--success-strong);
+  --color-warning-strong: var(--warning-strong);
+  --color-danger-strong: var(--danger-strong);
+  --color-info-strong: var(--info-strong);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--sidebar-active);
+  --color-sidebar-accent-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-indicator: var(--sidebar-indicator);
+  --color-sidebar-ring: var(--ring);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* Só para o nome "nishiads" da logo; a interface continua apenas em Inter. */
+  --font-brand: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand: var(--brand-navy);
+  --color-brand-cream: var(--brand-cream);
+
+  --shadow-xs: var(--shadow-xs-token);
+  --shadow-sm: var(--shadow-sm-token);
+  --shadow-md: var(--shadow-md-token);
+
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-sidebar-collapsed: var(--sidebar-width-collapsed);
+  --spacing-topbar: var(--topbar-height);
+  --spacing-page-x: var(--page-padding-x);
+  --spacing-page-y: var(--page-padding-y);
+
+  --animate-loading-bar: loading-bar var(--motion-loading) ease-in-out infinite;
+  --animate-check-in: check-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Camadas de sobreposição: o Tailwind não gera utilitários nomeados a partir de
+   --z-*, então as classes z-* do app precisam ser utilitários explícitos. */
+@utility z-navigation {
+  z-index: var(--layer-navigation);
+}
+
+@utility z-sidebar {
+  z-index: var(--layer-sidebar);
+}
+
+@utility z-overlay {
+  z-index: var(--layer-overlay);
+}
+
+@utility z-dialog {
+  z-index: var(--layer-dialog);
+}
+
+/* Rolagem sem barra visível: usada em trilhas com overflow (abas), onde a
+   barra do sistema roubaria altura do contêiner e criaria setas fantasmas. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+:root {
+  /* ---- Primitivas ---- */
+  --primitive-cream-50: #faf9f5;
+  --primitive-cream-100: #f3f1e8;
+  --primitive-cream-200: #e9e6da;
+  --primitive-cream-300: #d9d4c4;
+  --primitive-cream-400: #bfb9a5;
+
+  --primitive-blue-50: #eef3fa;
+  --primitive-blue-100: #dce6f5;
+  --primitive-blue-200: #c0d3ec;
+  --primitive-blue-500: #4b7ebc;
+  --primitive-blue-600: #3969a8;
+  --primitive-blue-700: #2a5288;
+  --primitive-blue-800: #1e3d66;
+  --primitive-blue-900: #152a46;
+
+  --primitive-black: #000000;
+  --primitive-neutral-0: #ffffff;
+  --primitive-neutral-100: #f5f5f2;
+  --primitive-neutral-200: #e5e5df;
+  --primitive-neutral-400: #a2a39a;
+  --primitive-neutral-500: #74766d;
+  --primitive-neutral-600: #5e6057;
+  --primitive-neutral-700: #45473f;
+  --primitive-neutral-900: #262820;
+
+  --primitive-success: #3f7650;
+  --primitive-success-strong: #2f5e3e;
+  --primitive-warning: #976822;
+  --primitive-warning-strong: #7a521a;
+  --primitive-danger: #b74e45;
+  --primitive-danger-hover: #9a3f37;
+  --primitive-danger-strong: #983b33;
+  --primitive-info: #52738a;
+  --primitive-info-strong: #3c596d;
+
+  /* ---- Marca (folha de identidade visual) ---- */
+  --brand-navy: #1e3d66; /* Azul Nishi */
+  --brand-cream: #faf5eb; /* Creme Stack */
+
+  /* ---- Tokens semânticos ---- */
+  --background: var(--primitive-cream-50);
+  --foreground: var(--primitive-neutral-900);
+
+  --surface: var(--primitive-neutral-0);
+  --surface-raised: var(--primitive-neutral-0);
+  --surface-muted: var(--primitive-cream-100);
+  /* Interação é azul, leitura é creme: hover e seleção nunca usam creme. */
+  --surface-hover: var(--primitive-blue-50);
+  --surface-selected: var(--primitive-blue-100);
+
+  --sidebar-background: var(--primitive-blue-900);
+  --sidebar-foreground: var(--primitive-cream-200);
+  --sidebar-active: var(--primitive-blue-700);
+  --sidebar-active-foreground: var(--primitive-neutral-0);
+  --sidebar-border: var(--primitive-blue-800);
+  --sidebar-muted: color-mix(in srgb, var(--primitive-cream-200) 60%, var(--primitive-blue-900));
+  --sidebar-hover: var(--primitive-blue-800);
+  --sidebar-indicator: var(--brand-cream);
+
+  --border: var(--primitive-cream-200);
+  --border-strong: var(--primitive-cream-300);
+
+  --input-background: var(--primitive-neutral-0);
+  --input-border: var(--primitive-cream-400);
+  --input-border-hover: var(--primitive-neutral-400);
+
+  --primary: var(--primitive-blue-700);
+  --primary-foreground: var(--primitive-neutral-0);
+  --primary-hover: var(--primitive-blue-800);
+  --primary-active: var(--primitive-blue-900);
+
+  --secondary: var(--primitive-blue-100);
+  --secondary-foreground: var(--primitive-blue-900);
+  --secondary-hover: var(--primitive-blue-200);
+
+  --muted: var(--primitive-cream-100);
+  /* 6:1 sobre o fundo creme e 5,6:1 sobre superfícies discretas. */
+  --muted-foreground: var(--primitive-neutral-600);
+
+  --accent: var(--primitive-blue-50);
+  --accent-foreground: var(--primitive-blue-900);
+
+  /* Anel de foco sólido (5,3:1 sobre o creme), nunca translúcido. */
+  --ring: var(--primitive-blue-600);
+
+  --success: var(--primitive-success);
+  --success-foreground: var(--primitive-neutral-0);
+  --warning: var(--primitive-warning);
+  --warning-foreground: var(--primitive-neutral-0);
+  --danger: var(--primitive-danger);
+  --danger-foreground: var(--primitive-neutral-0);
+  --danger-hover: var(--primitive-danger-hover);
+  --success-strong: var(--primitive-success-strong);
+  --warning-strong: var(--primitive-warning-strong);
+  --danger-strong: var(--primitive-danger-strong);
+  --info-strong: var(--primitive-info-strong);
+  --info: var(--primitive-info);
+  --info-foreground: var(--primitive-neutral-0);
+  --overlay: color-mix(in srgb, var(--primitive-black) 72%, transparent);
+
+  --chart-1: var(--primitive-blue-600);
+  --chart-2: var(--primitive-blue-200);
+  --chart-3: var(--primitive-info);
+  --chart-4: var(--primitive-warning);
+  --chart-5: var(--primitive-neutral-400);
+
+  /* ---- Geometria ---- */
+  --radius-sm-token: 0.25rem;
+  --radius-md-token: 0.375rem;
+  --radius-lg-token: 0.5rem;
+  --radius-xl-token: 0.75rem;
+  --radius: var(--radius-md-token);
+
+  --shadow-xs-token: 0 1px 2px color-mix(in srgb, var(--primitive-neutral-900) 4%, transparent);
+  --shadow-sm-token: 0 1px 3px color-mix(in srgb, var(--primitive-neutral-900) 7%, transparent);
+  --shadow-md-token: 0 4px 12px color-mix(in srgb, var(--primitive-neutral-900) 8%, transparent);
+
+  --sidebar-width: 252px;
+  --sidebar-width-collapsed: 76px;
+  --topbar-height: 64px;
+  --page-padding-x: 2rem;
+  --page-padding-y: 2rem;
+
+  /* ---- Movimento e camadas ---- */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 350ms;
+  --motion-loading: 1s;
+  --motion-sidebar: 280ms;
+  --ease-sidebar: cubic-bezier(0.32, 0.72, 0, 1);
+  --layer-navigation: 20;
+  --layer-sidebar: 30;
+  --layer-overlay: 40;
+  --layer-dialog: 50;
+}
+
+/* Preparação para dark mode futuro — não implementar ainda */
+[data-theme="dark"] {
+  /* Futuras definições semânticas do modo escuro */
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    /* Inter com l de cauda e I com serifa: separa l, I e 1 em códigos, e-mails e valores. */
+    font-feature-settings: "cv05", "cv08";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Rede de segurança para botões e links escritos à mão nas telas: os componentes
+     compartilhados desenham o próprio anel e removem o outline. */
+  :where(a, button, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@keyframes check-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.18) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
