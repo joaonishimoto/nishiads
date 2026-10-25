@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/app/form-field";
@@ -42,14 +42,6 @@ export function SignInPage() {
     <AuthLayout
       title="Entrar"
       subtitle="Acompanhe suas vendas e campanhas."
-      footer={
-        <>
-          Ainda não tem conta?{" "}
-          <Link to="/cadastro" className="font-medium text-primary hover:underline">
-            Criar conta
-          </Link>
-        </>
-      }
     >
       <form className="grid gap-4" onSubmit={onSubmit} noValidate>
         {formError && <LoadError>{formError}</LoadError>}
@@ -72,11 +64,6 @@ export function SignInPage() {
             onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
           />
         </FormField>
-        <div className="-mt-1 text-right">
-          <Link to="/recuperar-senha" className="text-xs font-medium text-primary hover:underline">
-            Esqueci minha senha
-          </Link>
-        </div>
         <Button type="submit" loading={submitting} loadingText="Entrando…">
           Entrar
         </Button>

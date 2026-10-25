@@ -12,7 +12,8 @@ major_version = 17
 [auth]
 site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173/redefinir-senha"]
-enable_signup = true
+# Uso próprio: contas são criadas pelo admin (Dashboard › Authentication › Users).
+enable_signup = false
 minimum_password_length = 8
 
 [auth.email]

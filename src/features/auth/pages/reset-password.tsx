@@ -28,10 +28,10 @@ export function ResetPasswordPage() {
     return (
       <AuthLayout title="Link inválido ou expirado">
         <p className="text-sm text-muted-foreground">
-          Peça um novo link de recuperação para criar sua senha.
+          Entre com sua senha atual e troque-a em Ajustes › Minha conta.
         </p>
-        <Link to="/recuperar-senha" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-          Pedir novo link
+        <Link to="/entrar" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
+          Ir para o login
         </Link>
       </AuthLayout>
     );

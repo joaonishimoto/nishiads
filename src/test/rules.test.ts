@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { signUpSchema } from "@/features/auth/schemas";
+import { resetPasswordSchema } from "@/features/auth/schemas";
 import { safeNext } from "@/features/auth/route-guards";
 import { assignableRoles, canManageMember, inviteSchema, workspaceSchema } from "@/features/workspaces/schemas";
 import { friendlyError } from "@/lib/errors";
@@ -17,27 +17,14 @@ describe("formatação pt-BR", () => {
   });
 });
 
-describe("cadastro", () => {
+describe("troca de senha", () => {
   it("exige senhas iguais e fortes", () => {
-    const weak = validate(signUpSchema, { fullName: "Ana", email: "a@b.com", password: "abc", confirmPassword: "abc" });
+    const weak = validate(resetPasswordSchema, { password: "abc", confirmPassword: "abc" });
     expect(weak.errors?.password).toBeDefined();
-    const mismatch = validate(signUpSchema, {
-      fullName: "Ana",
-      email: "a@b.com",
-      password: "senha1234",
-      confirmPassword: "senha12345",
-    });
+    const mismatch = validate(resetPasswordSchema, { password: "senha1234", confirmPassword: "senha12345" });
     expect(mismatch.errors?.confirmPassword).toBe("As senhas não conferem.");
-  });
-  it("normaliza o e-mail", () => {
-    const ok = validate(signUpSchema, {
-      fullName: " Ana ",
-      email: " Ana@Empresa.COM ",
-      password: "senha1234",
-      confirmPassword: "senha1234",
-    });
-    expect(ok.data?.email).toBe("ana@empresa.com");
-    expect(ok.data?.fullName).toBe("Ana");
+    const ok = validate(resetPasswordSchema, { password: "senha1234", confirmPassword: "senha1234" });
+    expect(ok.data?.password).toBe("senha1234");
   });
 });
 
