@@ -15,6 +15,23 @@ type EventRow = {
   attempts: number;
 };
 
+/** Segredo da integração do evento (alguns adapters usam a chave de API guardada nele). */
+async function integrationSecret(admin: SupabaseClient, integrationId: string | null): Promise<string | null> {
+  if (!integrationId) return null;
+  const { data: integration, error } = await admin
+    .from("checkout_integrations")
+    .select("webhook_secret_ref")
+    .eq("id", integrationId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!integration?.webhook_secret_ref) return null;
+  const { data, error: secretError } = await admin.rpc("service_read_secret", {
+    p_secret_id: integration.webhook_secret_ref,
+  });
+  if (secretError) throw new Error(secretError.message);
+  return (data as string | null) ?? null;
+}
+
 /** Normaliza um evento salvo e grava a venda. Idempotente: pode rodar de novo no mesmo evento. */
 export async function processWebhookEvent(admin: SupabaseClient, eventId: number): Promise<void> {
   const { data: event, error } = await admin
@@ -32,7 +49,8 @@ export async function processWebhookEvent(admin: SupabaseClient, eventId: number
     const adapter = getAdapter(event.provider);
     if (!adapter) throw new Error(`Provedor sem adapter: ${event.provider}`);
 
-    const result = await adapter.normalize(event.payload);
+    const secret = await integrationSecret(admin, event.checkout_integration_id);
+    const result = await adapter.normalize(event.payload, { secret });
     if (result.kind === "ignored") {
       await admin
         .from("webhook_events")

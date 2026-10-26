@@ -52,6 +52,21 @@ Para gerar um par VAPID novo:
 node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurve:"prime256v1"});console.log("VAPID_PUBLIC_KEY="+k.publicKey.export({format:"der",type:"spki"}).subarray(-65).toString("base64url"));console.log("VAPID_PRIVATE_KEY="+k.privateKey.export({format:"jwk"}).d)'
 ```
 
+## Stripe
+
+- Na Stripe, crie um destino de webhook com a URL da integração. Os eventos são:
+  - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
+  - `checkout.session.async_payment_failed`
+  - `invoice.paid`
+  - `charge.refunded`
+  - `charge.dispute.created`
+- Salve no Nishiads o *signing secret* (`whsec_...`) e uma chave restrita (`rk_live_...`) com leitura em Checkout Sessions, Invoices e Charges. As duas ficam juntas no Vault.
+- A venda é identificada pelo PaymentIntent, que liga o pagamento ao reembolso e ao chargeback.
+- Assinaturas entram por `invoice.paid`, inclusive as renovações. A chave de API resolve fatura → PaymentIntent (Invoice Payments, API basil+) e busca as UTMs da Checkout Session da assinatura.
+- **UTMs:** o checkout precisa mandar `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` e `utm_term` em `metadata` ao criar a Checkout Session, e em `subscription_data.metadata` para as renovações.
+- Teste: `scripts/send-test-stripe-webhook.sh "<URL>" "whsec_..."`
+
 ## Web Push
 
 - `public/sw.js` mostra a notificação e abre a venda ao tocar.

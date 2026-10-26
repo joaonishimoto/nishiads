@@ -1,11 +1,25 @@
 import type { CheckoutProvider } from "@/types/database";
 
+export type SecretField = {
+  key: string;
+  label: string;
+  hint: string;
+  placeholder: string;
+  /** Validação do formato (ex.: prefixo whsec_). */
+  pattern: RegExp;
+  patternMessage: string;
+};
+
 type ProviderInfo = {
   label: string;
   available: boolean;
   secretLabel: string;
   secretHint: string;
+  /** Provedores com mais de um segredo: os campos viram um JSON guardado no Vault. */
+  secretFields?: SecretField[];
   steps: string[];
+  /** Observação abaixo dos passos (ex.: como enviar as UTMs). */
+  note?: string;
 };
 
 /** Provedores de checkout. Ligar um novo: adapter na Edge Function + `available: true` aqui. */
@@ -32,10 +46,36 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
   },
   stripe: {
     label: "Stripe",
-    available: false,
-    secretLabel: "Signing secret (whsec_...)",
-    secretHint: "Em Developers › Webhooks no painel da Stripe.",
-    steps: [],
+    available: true,
+    secretLabel: "Chaves da Stripe",
+    secretHint: "",
+    secretFields: [
+      {
+        key: "webhook_secret",
+        label: "Signing secret do webhook",
+        hint: "Na Stripe, abra o destino do webhook e clique em Revelar ao lado de Signing secret.",
+        placeholder: "whsec_...",
+        pattern: /^whsec_[A-Za-z0-9]{16,}$/,
+        patternMessage: "Cole o signing secret completo, que começa com whsec_.",
+      },
+      {
+        key: "api_key",
+        label: "Chave restrita (só leitura)",
+        hint: "Usada para ligar a fatura da assinatura ao pagamento e buscar as UTMs da Checkout Session.",
+        placeholder: "rk_live_...",
+        pattern: /^rk_(live|test)_[A-Za-z0-9]{16,}$/,
+        patternMessage: "Use uma chave restrita, que começa com rk_live_ (ou rk_test_ para testes).",
+      },
+    ],
+    steps: [
+      "Na Stripe, abra Desenvolvedores › Webhooks › Adicionar destino, escolha Eventos na sua conta e cole a URL abaixo.",
+      "Selecione os eventos: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, invoice.paid, charge.refunded e charge.dispute.created.",
+      "Depois de criar, copie o Signing secret (whsec_...).",
+      "Em Desenvolvedores › Chaves de API, crie uma chave restrita com permissão Leitura em Checkout Sessions, Invoices e Charges. Copie a chave (rk_live_...).",
+      "Clique em Salvar chaves aqui e cole as duas.",
+    ],
+    note:
+      "Para atribuir a venda ao anúncio, o seu checkout precisa enviar utm_source, utm_medium, utm_campaign, utm_content e utm_term no metadata da Checkout Session (e em subscription_data.metadata, para as renovações).",
   },
   eduzz: {
     label: "Eduzz",
