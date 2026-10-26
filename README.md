@@ -90,6 +90,16 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 - **Uma execução por conta:** `service_claim_ad_account_sync` trava a conta; trava com mais de 10 min é retomada.
 - **Agendar o cron** (uma vez, no SQL Editor): `select private.schedule_meta_sync('https://<ref>.supabase.co');`. Cria o segredo `nishiads_cron_secret` no Vault, que o job manda no header `x-cron-secret`.
 
+## Conversions API da Meta
+
+- **Configurar:** Integrações › Conversions API › Configurar. ID do pixel (conjunto de dados), token gerado no Gerenciador de Eventos (Configurações › API de Conversões › Gerar token de acesso) e a URL do site. O token vai direto para o Vault (`meta_capi_configs.token_ref`); o app só vê `has_token`.
+- **Fila:** o trigger `sales_meta_capi` põe em `meta_capi_events` um evento por venda: aprovada → `Purchase`, teste iniciado → `StartTrial` (opcional), reembolso/chargeback → cancela o `Purchase` ainda não enviado ou, se já foi, manda o evento personalizado `Refund` (opcional, desligado por padrão).
+- **Envio** (`meta-capi` e `webhooks`): logo depois do webhook e, para retentativas, pelo pg_cron a cada 5 min (`private.schedule_meta_capi`, agendado sozinho pela migration se a sincronização da Meta já estiver agendada). Um evento por requisição, `POST /{pixel}/events` na `GRAPH_API_VERSION`.
+- **Dedup:** `event_id` = id do pedido no checkout (`pi_...` na Stripe, número do pedido na Kiwify). Reenvios e o mesmo evento vindo do pixel do site (com esse `eventID`) contam uma vez.
+- **Dados:** `em` (o hash SHA-256 que já guardamos), `external_id` (hash do `cus_...` da Stripe ou o hash do e-mail), `fbc`, `fbp` e `client_user_agent` quando o checkout repassa no metadata (`fbc`, `fbp`, `fbclid`, `client_user_agent`). Renovações (`billing_reason = subscription_cycle`) vão com `action_source = system_generated`; o resto, `website` com `event_source_url`. Se a Meta recusar um evento de site por falta de user agent, ele é reenviado como `other`.
+- **Erros:** rede, 5xx e limite → retentativa em 1 min, 5 min, 30 min, 2 h, 6 h e 12 h; token/permissão/pixel errado → avisa no card e tenta de hora em hora (salvar o token novo reenvia na hora); parâmetro inválido → falha. Eventos com mais de 7 dias (limite da Meta) não são enviados. Tudo aparece em Logs de integração › Conversions API.
+- **Teste:** com um código de teste salvo, os eventos vão para Gerenciador de Eventos › Testar eventos, e o botão *Enviar evento de teste* manda uma compra fictícia de R$ 1. Apague o código depois de conferir.
+
 ## Testes
 
 ```bash
@@ -112,6 +122,7 @@ Todo dado pertence a um `workspace`; o usuário pode estar em vários, com papel
 - **Anúncios:** `meta_connections` (token no Vault), `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert)
 - **Vendas:** `checkout_integrations`, `products`, `sales` (único em `(workspace_id, provider, external_order_id)`), `webhook_events`
 - **Notificações:** `notification_subscriptions`, `notification_preferences`
+- **Conversions API:** `meta_capi_configs` (token no Vault), `meta_capi_events` (fila e log)
 
 Regras que valem para todas as etapas:
 
