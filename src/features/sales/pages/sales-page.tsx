@@ -144,7 +144,7 @@ export function SalesPage() {
       )}
 
       <div
-        className="flex gap-1 overflow-x-auto border-b border-border"
+        className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]"
         role="tablist"
         aria-label="Visão"
       >
@@ -155,7 +155,7 @@ export function SalesPage() {
             aria-selected={view === tab.key}
             onClick={() => setView(tab.key)}
             className={cn(
-              "-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
+              "inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
               view === tab.key
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -336,7 +336,7 @@ function AllView({
       <SalesFeed
         sales={visible}
         chips={
-          <div className="flex gap-1.5 overflow-x-auto" role="group" aria-label="Status">
+          <div className="flex gap-1.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]" role="group" aria-label="Status">
             {STATUS_FILTERS.map((f) => (
               <button
                 key={f.key}
