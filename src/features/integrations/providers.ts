@@ -73,9 +73,10 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
       "Depois de criar, copie o Signing secret (whsec_...).",
       "Em Desenvolvedores › Chaves de API, crie uma chave restrita com permissão Leitura em Checkout Sessions, Invoices e Charges. Copie a chave (rk_live_...).",
       "Clique em Salvar chaves aqui e cole as duas.",
+      "Para conferir, reenvie um evento pela Stripe (no destino do webhook, abra um evento e clique em Reenviar). Ele aparece em Logs de integração.",
     ],
     note:
-      "Para atribuir a venda ao anúncio, o seu checkout precisa enviar utm_source, utm_medium, utm_campaign, utm_content e utm_term no metadata da Checkout Session (e em subscription_data.metadata, para as renovações).",
+      "Para atribuir a venda ao anúncio, o seu checkout precisa enviar utm_source, utm_medium, utm_campaign, utm_content e utm_term no metadata da Checkout Session (e em subscription_data.metadata, para as renovações). Cada renovação da assinatura entra como uma venda nova, atribuída ao anúncio da primeira compra. Webhooks que você já tem na Stripe continuam funcionando.",
   },
   eduzz: {
     label: "Eduzz",
