@@ -1,7 +1,17 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { AlertTriangle, ChartNoAxesCombined, Coins, Plug, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  ChartNoAxesCombined,
+  Coins,
+  Images,
+  LayoutDashboard,
+  Plug,
+  RefreshCw,
+  Rows3,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, LoadError, PageHeader, PageSkeleton, Panel } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
@@ -20,7 +30,21 @@ import {
 import { CampaignTree } from "@/features/results/campaign-tree";
 import { SaleLine, timeAgo, useFreshIds } from "@/features/results/recent-sales";
 import { ProductCostsDialog } from "@/features/results/product-costs";
+import {
+  CampaignRanking,
+  CreativeGrid,
+  flattenAds,
+  TopCreatives,
+} from "@/features/results/campaign-visuals";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+type Tab = "resumo" | "campanhas" | "criativos";
+const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
+  { key: "resumo", label: "Resumo", icon: LayoutDashboard },
+  { key: "campanhas", label: "Campanhas", icon: Rows3 },
+  { key: "criativos", label: "Criativos", icon: Images },
+];
 
 export function CampaignsPage() {
   const { workspace, canManage } = useWorkspace();
@@ -30,6 +54,20 @@ export function CampaignsPage() {
   const sync = useSyncNow(workspace.id);
   const [target, setTarget] = useRoasTarget(workspace.id);
   const [costsOpen, setCostsOpen] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = TABS.some((x) => x.key === params.get("aba"))
+    ? (params.get("aba") as Tab)
+    : "resumo";
+  const setTab = (next: Tab) =>
+    setParams(
+      (prev) => {
+        const q = new URLSearchParams(prev);
+        if (next === "resumo") q.delete("aba");
+        else q.set("aba", next);
+        return q;
+      },
+      { replace: true },
+    );
   useSalesRealtime(workspace.id);
 
   const syncing = results.tracked.some(isSyncing);
@@ -95,6 +133,19 @@ export function CampaignsPage() {
   // Hoje: a Meta só tem o gasto do dia inteiro de ontem, então gasto e derivados ficam sem comparação.
   const spendChange = (a: number | null, b: number | null) =>
     filters.partialComparison ? null : change(a, b);
+  const creatives = flattenAds(tree);
+  const noCampaigns = (
+    <EmptyState
+      compact
+      icon={ChartNoAxesCombined}
+      title={syncing ? "Importando campanhas…" : "Nenhuma campanha com gasto no período"}
+      description={
+        syncing
+          ? "A primeira importação traz os últimos 30 dias e leva alguns minutos."
+          : "Troque o período ou confira se a conta certa está sendo acompanhada em Integrações."
+      }
+    />
+  );
   const noCosts =
     results.products.length > 0 &&
     results.products.every((x) => !x.cost_cents && !x.fee_percent_bps && !x.fee_fixed_cents);
@@ -244,52 +295,121 @@ export function CampaignsPage() {
         </p>
       )}
 
-      {c && (
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Panel
-            title={
-              c.series.mode === "hour"
-                ? "Faturamento por hora"
-                : results.metaConnected
-                  ? "Gasto × faturamento por dia"
-                  : "Faturamento por dia"
-            }
-            description={
-              c.series.mode === "hour"
-                ? "A Meta informa o gasto por dia, não por hora."
-                : `${formatMoney(t!.revenueCents, cur)} faturados${results.metaConnected ? ` · ${formatMoney(t!.spendCents, cur)} investidos` : ""}`
-            }
+      {c && results.metaConnected && (
+        // Fica presa abaixo do topo ao rolar: a troca de visão está sempre à mão.
+        <div className="sticky top-14 z-10 -my-2 flex items-center justify-between gap-3 bg-background/95 py-2 backdrop-blur-md md:top-16">
+          <div
+            className="grid w-full grid-cols-3 gap-1 rounded-lg border border-border bg-muted p-1 sm:inline-flex sm:w-auto"
+            role="tablist"
+            aria-label="Visão"
           >
-            <SpendRevenueChart
-              points={c.series.points}
-              mode={c.series.mode}
-              currency={cur}
-              showSpend={results.metaConnected}
-            />
-          </Panel>
-          <LatestSales sales={latest} to={`${base}/vendas`} />
+            {TABS.map((tb) => {
+              const count =
+                tb.key === "campanhas"
+                  ? tree.length
+                  : tb.key === "criativos"
+                    ? creatives.length
+                    : undefined;
+              return (
+                <button
+                  key={tb.key}
+                  role="tab"
+                  aria-selected={tab === tb.key}
+                  onClick={() => setTab(tb.key)}
+                  className={cn(
+                    "inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors sm:px-4",
+                    tab === tb.key
+                      ? "bg-surface text-primary shadow-sm"
+                      : "text-muted-foreground hover:bg-surface/60 hover:text-foreground",
+                  )}
+                >
+                  <tb.icon className="h-4 w-4 shrink-0" aria-hidden />
+                  {tb.label}
+                  {count !== undefined && count > 0 && (
+                    <span className="hidden rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground min-[400px]:inline">
+                      {fmt.int(count)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {tab !== "resumo" && (
+            <div className="hidden sm:block">
+              <RoasTargetButton target={target} onChange={setTarget} />
+            </div>
+          )}
         </div>
       )}
 
-      {results.metaConnected ? (
+      {c && (tab === "resumo" || !results.metaConnected) && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <Panel
+              title={
+                c.series.mode === "hour"
+                  ? "Faturamento por hora"
+                  : results.metaConnected
+                    ? "Gasto × faturamento por dia"
+                    : "Faturamento por dia"
+              }
+              description={
+                c.series.mode === "hour"
+                  ? "A Meta informa o gasto por dia, não por hora."
+                  : `${formatMoney(t!.revenueCents, cur)} faturados${results.metaConnected ? ` · ${formatMoney(t!.spendCents, cur)} investidos` : ""}`
+              }
+            >
+              <SpendRevenueChart
+                points={c.series.points}
+                mode={c.series.mode}
+                currency={cur}
+                showSpend={results.metaConnected}
+              />
+            </Panel>
+            <LatestSales sales={latest} to={`${base}/vendas`} />
+          </div>
+          {results.metaConnected && (
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+              <Panel
+                title="Campanhas"
+                description="Faturamento contra gasto de cada campanha, na mesma escala."
+              >
+                {tree.length === 0 ? (
+                  noCampaigns
+                ) : (
+                  <CampaignRanking
+                    nodes={tree}
+                    currency={cur}
+                    target={target}
+                    onOpenAll={() => setTab("campanhas")}
+                  />
+                )}
+              </Panel>
+              <Panel title="Criativos que mais dão lucro">
+                <TopCreatives
+                  items={creatives}
+                  currency={cur}
+                  target={target}
+                  onOpenAll={creatives.length ? () => setTab("criativos") : undefined}
+                />
+              </Panel>
+            </div>
+          )}
+        </div>
+      )}
+
+      {c && results.metaConnected && tab === "campanhas" && (
         <Panel
-          title="Por campanha"
-          description="Campanha › Conjunto › Anúncio. Abra uma linha para descer de nível."
-          action={<RoasTargetButton target={target} onChange={setTarget} />}
+          title="Campanha › Conjunto › Anúncio"
+          description="Abra uma linha para ver os conjuntos e os anúncios. Toque no título de uma coluna para ordenar."
+          action={
+            <span className="sm:hidden">
+              <RoasTargetButton target={target} onChange={setTarget} />
+            </span>
+          }
         >
           {tree.length === 0 ? (
-            <div className="p-4">
-              <EmptyState
-                compact
-                icon={ChartNoAxesCombined}
-                title={syncing ? "Importando campanhas…" : "Nenhuma campanha com gasto no período"}
-                description={
-                  syncing
-                    ? "A primeira importação traz os últimos 30 dias e leva alguns minutos."
-                    : "Troque o período ou confira se a conta certa está sendo acompanhada em Integrações."
-                }
-              />
-            </div>
+            <div className="p-4">{noCampaigns}</div>
           ) : (
             treeTotals && (
               <CampaignTree
@@ -306,7 +426,20 @@ export function CampaignsPage() {
             )
           )}
         </Panel>
-      ) : null}
+      )}
+
+      {c && results.metaConnected && tab === "criativos" && (
+        <div className="space-y-3">
+          <div className="flex justify-end sm:hidden">
+            <RoasTargetButton target={target} onChange={setTarget} />
+          </div>
+          {creatives.length === 0 ? (
+            noCampaigns
+          ) : (
+            <CreativeGrid items={creatives} currency={cur} target={target} />
+          )}
+        </div>
+      )}
 
       <ProductCostsDialog
         open={costsOpen}

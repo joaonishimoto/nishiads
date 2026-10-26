@@ -91,7 +91,7 @@ export function MetricCard({
       >
         {value}
       </p>
-      <div className="mt-auto flex min-h-5 flex-wrap items-center gap-x-1.5 pt-1 text-xs text-muted-foreground">
+      <div className="mt-auto flex min-h-5 min-w-0 items-center gap-x-1.5 overflow-hidden whitespace-nowrap pt-1 text-xs text-muted-foreground">
         {delta !== null && delta !== undefined && (
           <span
             className={cn(
@@ -236,10 +236,10 @@ export function Thumb({
 }: {
   src: string | null;
   alt: string;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const [failed, setFailed] = useState(false);
-  const box = size === "sm" ? "h-8 w-8" : "h-10 w-10";
+  const box = size === "sm" ? "h-8 w-8" : size === "lg" ? "h-16 w-16" : "h-10 w-10";
   if (!src || failed) {
     return (
       <span

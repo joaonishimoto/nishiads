@@ -551,7 +551,7 @@ function MobileNode({ node, depth, isOpen, toggle, ctx }: NodeProps) {
           {cells.map(([label, value]) => (
             <div key={label} className="min-w-0">
               <dt className="text-[11px] text-muted-foreground">{label}</dt>
-              <dd className="text-sm font-medium tabular-nums text-foreground [overflow-wrap:anywhere]">
+              <dd className="text-sm font-medium tabular-nums whitespace-nowrap text-foreground">
                 {value}
               </dd>
             </div>
