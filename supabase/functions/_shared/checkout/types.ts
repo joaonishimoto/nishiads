@@ -39,6 +39,11 @@ export interface EventSummary {
   externalOrderId: string | null;
 }
 
+export interface NormalizeContext {
+  /** Segredo da integração (o mesmo do verify); a Stripe guarda nele também a chave de API. */
+  secret: string | null;
+}
+
 /**
  * Adapter de um provedor de checkout. Para adicionar um provedor: implemente esta
  * interface em `checkout/<provedor>.ts` e registre em `checkout/registry.ts`.
@@ -51,5 +56,5 @@ export interface CheckoutAdapter {
   /** Remove dados pessoais antes de gravar (LGPD). O resultado ainda deve ser normalizável. */
   redact(payload: unknown): Promise<unknown>;
   summarize(payload: unknown): EventSummary;
-  normalize(payload: unknown): Promise<NormalizeResult>;
+  normalize(payload: unknown, context?: NormalizeContext): Promise<NormalizeResult>;
 }

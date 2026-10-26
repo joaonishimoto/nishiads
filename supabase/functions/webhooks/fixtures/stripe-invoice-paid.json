@@ -1,0 +1,40 @@
+{
+  "id": "evt_1TesteInvoicePaid",
+  "object": "event",
+  "api_version": "2026-01-28.clover",
+  "type": "invoice.paid",
+  "created": 1792980000,
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "in_1TesteFatura",
+      "object": "invoice",
+      "amount_paid": 7800,
+      "currency": "brl",
+      "customer": "cus_Teste",
+      "customer_email": "Cliente.Stripe@Exemplo.com",
+      "customer_name": "Cliente Teste",
+      "billing_reason": "subscription_create",
+      "created": 1792979990,
+      "status": "paid",
+      "status_transitions": { "paid_at": 1792980000 },
+      "parent": {
+        "type": "subscription_details",
+        "subscription_details": {
+          "subscription": "sub_1TesteAssinatura",
+          "metadata": {}
+        }
+      },
+      "lines": {
+        "object": "list",
+        "data": [
+          {
+            "id": "il_1",
+            "description": "1 × FreelaPro Business (at R$ 78,00 / month)",
+            "pricing": { "type": "price_details", "price_details": { "price": "price_1", "product": "prod_Business" } }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -40,7 +40,7 @@ import {
   webhookUrl,
   type Integration,
 } from "@/features/integrations/api";
-import { PROVIDERS } from "@/features/integrations/providers";
+import { PROVIDERS, type SecretField } from "@/features/integrations/providers";
 import { friendlyError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
 import { validate, type FieldErrors } from "@/lib/form";
@@ -52,10 +52,6 @@ type ProviderKey = keyof typeof PROVIDERS;
 const createSchema = z.object({
   provider: z.enum(["kiwify", "hotmart", "stripe", "eduzz"]),
   name: z.string().trim().min(1, "Dê um nome à integração.").max(80, "Use no máximo 80 caracteres."),
-});
-
-const secretSchema = z.object({
-  secret: z.string().trim().min(8, "O token precisa ter pelo menos 8 caracteres.").max(500, "Token muito longo."),
 });
 
 export function IntegrationsPage() {
@@ -100,7 +96,7 @@ export function IntegrationsPage() {
           title="Nenhum checkout conectado"
           description={
             canManage
-              ? "Conecte a Kiwify para receber cada venda com a campanha, o conjunto e o criativo de origem."
+              ? "Conecte a Kiwify ou a Stripe para receber cada venda com a campanha, o conjunto e o criativo de origem."
               : "Peça a um owner ou admin para conectar o checkout."
           }
           action={canManage && <Button onClick={() => setCreating(true)}>Conectar checkout</Button>}
@@ -133,6 +129,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const remove = useDeleteIntegration(workspace.id);
   const [settingSecret, setSettingSecret] = useState(false);
   const provider = PROVIDERS[integration.provider as ProviderKey];
+  const secretNoun = provider?.secretFields ? "as chaves" : "o token";
   const url = webhookUrl(integration.provider, integration.webhook_url_token);
 
   return (
@@ -145,7 +142,13 @@ function IntegrationCard({ integration }: { integration: Integration }) {
       }`}
       action={
         <Status tone={!integration.active ? "neutral" : integration.has_secret ? "success" : "warning"}>
-          {!integration.active ? "Desativada" : integration.has_secret ? "Ativa" : "Falta o token"}
+          {!integration.active
+            ? "Desativada"
+            : integration.has_secret
+              ? "Ativa"
+              : provider?.secretFields
+                ? "Faltam as chaves"
+                : "Falta o token"}
         </Status>
       }
     >
@@ -154,7 +157,10 @@ function IntegrationCard({ integration }: { integration: Integration }) {
           {!integration.has_secret && (
             <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning-strong">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <p>Sem o token, os webhooks são recusados. Siga os passos abaixo e salve o token da {provider?.label}.</p>
+              <p>
+                Sem {secretNoun}, os webhooks são recusados. Siga os passos abaixo e salve {secretNoun} da{" "}
+                {provider?.label}.
+              </p>
             </div>
           )}
           <div className="grid gap-1.5">
@@ -171,6 +177,9 @@ function IntegrationCard({ integration }: { integration: Integration }) {
                   <li key={step}>{step}</li>
                 ))}
               </ol>
+              {provider.note && (
+                <p className="border-t border-border px-3 py-3 text-sm text-muted-foreground">{provider.note}</p>
+              )}
             </details>
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
@@ -193,7 +202,13 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => setSettingSecret(true)}>
                 <KeyRound />
-                {integration.has_secret ? "Trocar token" : "Salvar token"}
+                {provider?.secretFields
+                  ? integration.has_secret
+                    ? "Trocar chaves"
+                    : "Salvar chaves"
+                  : integration.has_secret
+                    ? "Trocar token"
+                    : "Salvar token"}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -256,21 +271,37 @@ function SecretDialog({
 }) {
   const { workspace } = useWorkspace();
   const setSecret = useSetIntegrationSecret(workspace.id);
-  const [secret, setSecretValue] = useState("");
-  const [error, setError] = useState<string | undefined>();
   const provider = PROVIDERS[integration.provider as ProviderKey];
+  const fields: SecretField[] = provider?.secretFields ?? [
+    {
+      key: "secret",
+      label: provider?.secretLabel ?? "Token",
+      hint: provider?.secretHint ?? "",
+      placeholder: "Cole o token aqui",
+      pattern: /^.{8,500}$/,
+      patternMessage: "O token precisa ter entre 8 e 500 caracteres.",
+    },
+  ];
+  const multiple = fields.length > 1;
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    const result = validate(secretSchema, { secret });
-    setError(result.errors?.secret);
-    if (!result.data) return;
+    const trimmed = Object.fromEntries(fields.map((f) => [f.key, (values[f.key] ?? "").trim()]));
+    const nextErrors = Object.fromEntries(
+      fields.map((f) => [f.key, f.pattern.test(trimmed[f.key] ?? "") ? undefined : f.patternMessage]),
+    );
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
+    // Vários segredos (Stripe) vão juntos, como JSON, para o mesmo item do Vault.
+    const secret = multiple ? JSON.stringify(trimmed) : (trimmed[fields[0]!.key] ?? "");
     setSecret.mutate(
-      { integrationId: integration.id, secret: result.data.secret },
+      { integrationId: integration.id, secret },
       {
         onSuccess: () => {
-          toast.success("Token salvo com criptografia.");
-          setSecretValue("");
+          toast.success(multiple ? "Chaves salvas com criptografia." : "Token salvo com criptografia.");
+          setValues({});
           onOpenChange(false);
         },
       },
@@ -284,21 +315,24 @@ function SecretDialog({
           <DialogHeader>
             <DialogTitle>{provider?.secretLabel ?? "Token"}</DialogTitle>
             <DialogDescription>
-              Fica criptografado no Supabase Vault. Depois de salvo, ninguém consegue ver o token pelo app.
+              {multiple ? "Ficam criptografadas" : "Fica criptografado"} no Supabase Vault. Depois de salvo, ninguém
+              consegue ver pelo app.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <div className="grid gap-4">
               {setSecret.isError && <LoadError>{friendlyError(setSecret.error)}</LoadError>}
-              <FormField label={provider?.secretLabel ?? "Token"} error={error} hint={provider?.secretHint}>
-                <Input
-                  type="password"
-                  autoComplete="off"
-                  placeholder="Cole o token aqui"
-                  value={secret}
-                  onChange={(e) => setSecretValue(e.target.value)}
-                />
-              </FormField>
+              {fields.map((field) => (
+                <FormField key={field.key} label={field.label} error={errors[field.key]} hint={field.hint || undefined}>
+                  <Input
+                    type="password"
+                    autoComplete="off"
+                    placeholder={field.placeholder}
+                    value={values[field.key] ?? ""}
+                    onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+                  />
+                </FormField>
+              ))}
             </div>
           </DialogBody>
           <DialogFooter>
@@ -306,7 +340,7 @@ function SecretDialog({
               Cancelar
             </Button>
             <Button type="submit" loading={setSecret.isPending} loadingText="Salvando…">
-              Salvar token
+              {multiple ? "Salvar chaves" : "Salvar token"}
             </Button>
           </DialogFooter>
         </form>
@@ -344,7 +378,7 @@ function CreateIntegrationDialog({ open, onOpenChange }: { open: boolean; onOpen
           <DialogHeader>
             <DialogTitle>Conectar checkout</DialogTitle>
             <DialogDescription>
-              Criamos uma URL de webhook exclusiva. Você cola essa URL no checkout e salva o token dele aqui.
+              Criamos uma URL de webhook exclusiva. Você cola essa URL no checkout e salva as chaves dele aqui.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

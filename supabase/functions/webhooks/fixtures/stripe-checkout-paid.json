@@ -1,0 +1,27 @@
+{
+  "id": "evt_teste_checkout",
+  "object": "event",
+  "type": "checkout.session.completed",
+  "data": {
+    "object": {
+      "id": "cs_test_nishiads",
+      "object": "checkout.session",
+      "mode": "payment",
+      "payment_status": "paid",
+      "payment_intent": "pi_teste_nishiads",
+      "amount_total": 19700,
+      "currency": "brl",
+      "created": 1792980000,
+      "customer_details": { "email": "cliente.teste@exemplo.com", "name": "Cliente Teste" },
+      "metadata": {
+        "product_id": "prod_teste",
+        "product_name": "Produto de teste (Stripe)",
+        "utm_source": "FB",
+        "utm_medium": "Lookalike 1%|120211111111111111",
+        "utm_campaign": "[VENDAS] Black Friday|120200000000000000",
+        "utm_content": "Vídeo depoimento 01|120222222222222222",
+        "utm_term": "Instagram_Reels"
+      }
+    }
+  }
+}
