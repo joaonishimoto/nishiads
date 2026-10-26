@@ -15,6 +15,8 @@ export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "c
 export type AttributionStatus = "matched" | "partial" | "unattributed";
 export type NotificationChannel = "webpush" | "telegram";
 export type WebhookEventStatus = "received" | "processed" | "ignored" | "rejected" | "failed";
+export type MetaCapiEventStatus = "pending" | "sent" | "failed" | "skipped";
+export type MetaCapiEventName = "Purchase" | "StartTrial" | "Refund";
 
 type ProfileRow = Timestamps & { id: string; email: string; full_name: string | null };
 
@@ -189,7 +191,49 @@ type SaleRow = Timestamps & {
   trial_converted_at: string | null;
   /** Teste: a venda aprovada em que ele se converteu. */
   converted_sale_id: string | null;
+  /** Dados de clique da Meta repassados pelo checkout (Conversions API). */
+  fbc: string | null;
+  fbp: string | null;
+  client_user_agent: string | null;
   raw_payload: Json;
+};
+
+/** token_ref não é legível pelo app; has_token diz se existe. */
+type MetaCapiConfigRow = {
+  workspace_id: string;
+  pixel_id: string;
+  has_token: boolean;
+  event_source_url: string;
+  test_event_code: string | null;
+  enabled: boolean;
+  send_trials: boolean;
+  send_refunds: boolean;
+  last_sent_at: string | null;
+  last_error: string | null;
+  last_error_at: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type MetaCapiEventRow = {
+  id: number;
+  workspace_id: string;
+  sale_id: string | null;
+  event_name: MetaCapiEventName;
+  event_id: string;
+  event_time: string;
+  is_test: boolean;
+  status: MetaCapiEventStatus;
+  attempts: number;
+  next_attempt_at: string;
+  locked_until: string | null;
+  last_error: string | null;
+  request: Json | null;
+  response: Json | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type WebhookEventRow = {
@@ -421,6 +465,20 @@ export type Database = {
         | "revenue_cents"
         | "status"
       >;
+      meta_capi_configs: Table<MetaCapiConfigRow, "workspace_id" | "pixel_id" | "event_source_url">;
+      meta_capi_events: Table<
+        MetaCapiEventRow,
+        "workspace_id" | "event_name" | "event_id" | "event_time",
+        [
+          {
+            foreignKeyName: "meta_capi_events_sale_id_workspace_id_fkey";
+            columns: ["sale_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "sales";
+            referencedColumns: ["id", "workspace_id"];
+          },
+        ]
+      >;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -459,6 +517,31 @@ export type Database = {
       };
       set_checkout_integration_secret: {
         Args: { p_integration_id: string; p_webhook_secret: string };
+        Returns: undefined;
+      };
+      save_meta_capi_config: {
+        Args: {
+          p_workspace_id: string;
+          p_pixel_id: string;
+          p_event_source_url: string;
+          p_access_token?: string | null;
+          p_test_event_code?: string | null;
+          p_enabled?: boolean;
+          p_send_trials?: boolean;
+          p_send_refunds?: boolean;
+        };
+        Returns: undefined;
+      };
+      delete_meta_capi_config: {
+        Args: { p_workspace_id: string };
+        Returns: undefined;
+      };
+      enqueue_meta_capi_backfill: {
+        Args: { p_workspace_id: string };
+        Returns: number;
+      };
+      retry_meta_capi_event: {
+        Args: { p_event_id: number };
         Returns: undefined;
       };
       register_push_subscription: {
@@ -508,6 +591,7 @@ export type Database = {
       attribution_status: AttributionStatus;
       notification_channel: NotificationChannel;
       webhook_event_status: WebhookEventStatus;
+      meta_capi_event_status: MetaCapiEventStatus;
     };
     CompositeTypes: { [_ in never]: never };
   };
