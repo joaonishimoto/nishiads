@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import type { SaleStatus } from "@/types/database";
 
 const PERIODS: PeriodKey[] = ["today", "yesterday", "7d", "30d", "custom"];
-const STATUSES: (SaleStatus | "all")[] = ["all", "approved", "pending", "refunded", "chargeback", "canceled"];
+const STATUSES: (SaleStatus | "all")[] = ["all", "approved", "trialing", "pending", "refunded", "chargeback", "canceled"];
 
 export function SalesPage() {
   const { workspace } = useWorkspace();
@@ -163,8 +163,18 @@ function SummaryRow({ range }: { range: SalesFilters["range"] }) {
       value: s ? (s.matchedShare === null ? "—" : `${Math.round(s.matchedShare * 100)}%`) : "…",
     },
   ];
+  // Testes só aparecem para quem vende assinatura com período de teste.
+  if (s && s.trialCount > 0) {
+    items.push({
+      label: "Testes iniciados",
+      value: `${s.trialCount.toLocaleString("pt-BR")} · ${Math.round((s.trialConvertedCount / s.trialCount) * 100)}% pagaram`,
+    });
+  }
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-busy={summary.isPending}>
+    <div
+      className={cn("grid grid-cols-2 gap-3", items.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}
+      aria-busy={summary.isPending}
+    >
       {items.map((item) => (
         <div key={item.label} className="min-w-0 rounded-lg border border-border bg-surface p-3 sm:p-4">
           <p className="truncate text-xs font-medium text-muted-foreground">{item.label}</p>
@@ -292,11 +302,15 @@ function SaleRow({ sale }: { sale: SaleListItem }) {
           className={cn(
             "text-right text-sm font-semibold tabular-nums",
             sale.status === "approved" && "text-foreground",
-            sale.status === "pending" && "text-muted-foreground",
+            (sale.status === "pending" || sale.status === "trialing") && "text-muted-foreground",
             ["refunded", "chargeback", "canceled"].includes(sale.status) && "text-muted-foreground line-through",
           )}
         >
-          {formatMoney(sale.gross_amount_cents, sale.currency)}
+          {sale.status === "trialing"
+            ? sale.trial_converted_at
+              ? "Pagou"
+              : "Em teste"
+            : formatMoney(sale.gross_amount_cents, sale.currency)}
         </span>
         <span className="min-w-0 text-xs">
           <AttributionPath

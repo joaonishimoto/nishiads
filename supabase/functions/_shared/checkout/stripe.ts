@@ -5,6 +5,10 @@
  * reembolso e no chargeback. Desde a API 2025-03-31.basil a fatura de assinatura não traz
  * mais o PaymentIntent no webhook, então a chave de API resolve fatura → pagamento e busca
  * as UTMs da Checkout Session que criou a assinatura.
+ *
+ * Teste grátis: o checkout de assinatura sem cobrança (ou a primeira fatura de valor zero)
+ * vira um registro "trialing" identificado pela assinatura (sub_...). A primeira fatura paga
+ * da assinatura converte o teste.
  */
 import { hashEmail, hmacHex, timingSafeEqual } from "../crypto.ts";
 import { cleanText } from "../values.ts";
@@ -124,7 +128,7 @@ const ignored = (reason: string): NormalizeResult => ({ kind: "ignored", reason 
 
 async function fromCheckoutSession(type: string, session: Obj, apiKey: string | null): Promise<NormalizeResult> {
   const mode = str(session.mode);
-  if (mode === "subscription") return ignored("Assinatura: a venda entra pelo evento invoice.paid.");
+  if (mode === "subscription") return fromSubscriptionCheckout(type, session, apiKey);
   if (mode !== "payment") return ignored(`Checkout Session em modo ${mode ?? "desconhecido"}.`);
 
   const paymentIntent = idOf(session.payment_intent);
@@ -135,15 +139,7 @@ async function fromCheckoutSession(type: string, session: Obj, apiKey: string | 
   else if (type === "checkout.session.async_payment_succeeded" || session.payment_status === "paid") status = "approved";
   else status = "pending";
 
-  const metadata = obj(session.metadata);
-  let productName = cleanText(metadata?.product_name, 200);
-  let productId = cleanText(metadata?.product_id, 200);
-  if ((!productName || !productId) && apiKey && str(session.id)) {
-    const line = firstOfList(await stripeGet(apiKey, `/checkout/sessions/${session.id}/line_items`, { limit: "1" }));
-    productName ??= cleanText(line?.description, 200);
-    productId ??= idOf(obj(line?.price)?.product);
-  }
-
+  const product = await sessionProduct(session, apiKey);
   const details = obj(session.customer_details);
   return {
     kind: "sale",
@@ -152,8 +148,8 @@ async function fromCheckoutSession(type: string, session: Obj, apiKey: string | 
       status,
       gross_amount_cents: cents(session.amount_total) ?? 0,
       currency: currencyOf(session.currency),
-      external_product_id: productId,
-      product_name: productName,
+      external_product_id: product.id,
+      product_name: product.name,
       customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
       ...utmsFrom(session.metadata),
       paid_at: status === "approved" ? (unixToIso(session.created) ?? new Date().toISOString()) : null,
@@ -161,9 +157,92 @@ async function fromCheckoutSession(type: string, session: Obj, apiKey: string | 
   };
 }
 
+/** Produto da Checkout Session: metadata (product_name/product_id) ou o 1º item. */
+async function sessionProduct(session: Obj, apiKey: string | null) {
+  const metadata = obj(session.metadata);
+  let name = cleanText(metadata?.product_name, 200);
+  let id = cleanText(metadata?.product_id, 200);
+  if ((!name || !id) && apiKey && str(session.id)) {
+    const line = firstOfList(await stripeGet(apiKey, `/checkout/sessions/${session.id}/line_items`, { limit: "1" }));
+    name ??= cleanText(line?.description, 200);
+    id ??= idOf(obj(line?.price)?.product);
+  }
+  return { name, id };
+}
+
+/** Checkout de assinatura: com cobrança, a venda entra pelo invoice.paid; sem cobrança, é um teste. */
+async function fromSubscriptionCheckout(type: string, session: Obj, apiKey: string | null): Promise<NormalizeResult> {
+  const free = session.payment_status === "no_payment_required" || cents(session.amount_total) === 0;
+  if (!free) return ignored("Assinatura: a venda entra pelo evento invoice.paid.");
+  if (type !== "checkout.session.completed") return ignored(`Evento ${type} de assinatura sem cobrança.`);
+  const subscriptionId = idOf(session.subscription);
+  if (!subscriptionId) return ignored("Checkout de assinatura sem id de assinatura.");
+
+  const product = await sessionProduct(session, apiKey);
+  const details = obj(session.customer_details);
+  return {
+    kind: "sale",
+    sale: baseSale({
+      external_order_id: subscriptionId,
+      subscription_ref: subscriptionId,
+      status: "trialing",
+      currency: currencyOf(session.currency),
+      external_product_id: product.id,
+      product_name: product.name,
+      customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
+      ...utmsFrom(session.metadata),
+    }),
+  };
+}
+
+/** UTMs da assinatura: metadata da assinatura ou, sem ela, da Checkout Session que a criou. */
+async function subscriptionUtms(metadata: unknown, subscriptionId: string | null, apiKey: string | null) {
+  let utms = utmsFrom(metadata);
+  if (!hasUtm(utms) && apiKey && subscriptionId) {
+    const session = firstOfList(
+      await stripeGet(apiKey, "/checkout/sessions", { subscription: subscriptionId, limit: "1" }),
+    );
+    utms = utmsFrom(session?.metadata);
+  }
+  return utms;
+}
+
+function invoiceProduct(invoice: Obj) {
+  const lines = obj(invoice.lines);
+  const line = Array.isArray(lines?.data) ? obj(lines.data[0]) : null;
+  const priceDetails = obj(obj(line?.pricing)?.price_details);
+  return {
+    id: idOf(priceDetails?.product) ?? idOf(obj(line?.price)?.product),
+    name: cleanText(line?.description, 200),
+  };
+}
+
 async function fromInvoice(invoice: Obj, apiKey: string | null): Promise<NormalizeResult> {
+  const parent = obj(invoice.parent);
+  const subscriptionDetails = obj(parent?.subscription_details) ?? obj(invoice.subscription_details);
+  const subscriptionId = idOf(subscriptionDetails?.subscription) ?? idOf(invoice.subscription);
+
   const amountPaid = cents(invoice.amount_paid) ?? 0;
-  if (amountPaid === 0) return ignored("Fatura de valor zero (ex.: período de teste).");
+  if (amountPaid === 0) {
+    // Primeira fatura zerada da assinatura = início do teste (cobre assinaturas criadas fora do Checkout).
+    if (!subscriptionId || invoice.billing_reason !== "subscription_create") {
+      return ignored("Fatura de valor zero que não inicia um teste.");
+    }
+    const product = invoiceProduct(invoice);
+    return {
+      kind: "sale",
+      sale: baseSale({
+        external_order_id: subscriptionId,
+        subscription_ref: subscriptionId,
+        status: "trialing",
+        currency: currencyOf(invoice.currency),
+        external_product_id: product.id,
+        product_name: product.name,
+        customer_email_hash: await emailHash(invoice, str(invoice.customer_email)),
+        ...(await subscriptionUtms(subscriptionDetails?.metadata, subscriptionId, apiKey)),
+      }),
+    };
+  }
   const invoiceId = str(invoice.id);
   if (!invoiceId) throw new Error("Fatura da Stripe sem id.");
 
@@ -176,31 +255,19 @@ async function fromInvoice(invoice: Obj, apiKey: string | null): Promise<Normali
     paymentIntent = idOf(obj(payment?.payment)?.payment_intent);
   }
 
-  const parent = obj(invoice.parent);
-  const subscriptionDetails = obj(parent?.subscription_details) ?? obj(invoice.subscription_details);
-  const subscriptionId = idOf(subscriptionDetails?.subscription) ?? idOf(invoice.subscription);
-  let utms = utmsFrom(subscriptionDetails?.metadata);
-  if (!hasUtm(utms) && apiKey && subscriptionId) {
-    const session = firstOfList(
-      await stripeGet(apiKey, "/checkout/sessions", { subscription: subscriptionId, limit: "1" }),
-    );
-    utms = utmsFrom(session?.metadata);
-  }
-
-  const lines = obj(invoice.lines);
-  const line = Array.isArray(lines?.data) ? obj(lines.data[0]) : null;
-  const priceDetails = obj(obj(line?.pricing)?.price_details);
-  const productId = idOf(priceDetails?.product) ?? idOf(obj(line?.price)?.product);
+  const utms = await subscriptionUtms(subscriptionDetails?.metadata, subscriptionId, apiKey);
+  const product = invoiceProduct(invoice);
 
   return {
     kind: "sale",
     sale: baseSale({
       external_order_id: paymentIntent ?? invoiceId,
+      subscription_ref: subscriptionId,
       status: "approved",
       gross_amount_cents: amountPaid,
       currency: currencyOf(invoice.currency),
-      external_product_id: productId,
-      product_name: cleanText(line?.description, 200),
+      external_product_id: product.id,
+      product_name: product.name,
       customer_email_hash: await emailHash(invoice, str(invoice.customer_email)),
       ...utms,
       paid_at: unixToIso(obj(invoice.status_transitions)?.paid_at) ?? unixToIso(invoice.created),

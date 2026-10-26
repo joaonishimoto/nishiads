@@ -1,5 +1,6 @@
 export type CheckoutProvider = "kiwify" | "hotmart" | "stripe" | "eduzz" | "generic";
-export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "canceled";
+/** trialing: assinatura em período de teste (ainda sem cobrança). */
+export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "canceled" | "trialing";
 
 /** Formato interno de `sales`, comum a todos os provedores. */
 export interface NormalizedSale {
@@ -18,6 +19,11 @@ export interface NormalizedSale {
   utm_term: string | null;
   paid_at: string | null;
   refunded_at: string | null;
+  /**
+   * Assinatura da venda (sub_... na Stripe). O teste usa esse id como external_order_id;
+   * a primeira venda aprovada com o mesmo subscription_ref converte o teste.
+   */
+  subscription_ref?: string | null;
 }
 
 export interface VerifyInput {
