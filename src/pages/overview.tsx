@@ -15,7 +15,7 @@ function useSetupCounts(workspaceId: string) {
     queryKey: ["overview", workspaceId, "setup"],
     queryFn: async () => {
       const [accounts, salesWithUtm] = await Promise.all([
-        supabase.from("ad_accounts").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+        supabase.from("ad_accounts").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("is_tracked", true),
         supabase
           .from("sales")
           .select("id", { count: "exact", head: true })
