@@ -10,12 +10,15 @@ import {
   Plug,
   RefreshCw,
   Rows3,
+  ToggleRight,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, LoadError, PageHeader, PageSkeleton, Panel } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { isSyncing, metaErrorMessage, useSyncNow } from "@/features/meta/api";
+import { isSyncing, metaErrorMessage, useMetaConnections, useSyncNow } from "@/features/meta/api";
+import { WRITE_SCOPE } from "@/features/meta/actions";
+import { ActionHistoryButton, MetaControlsProvider, useTouchedIds } from "@/features/meta/controls";
 import { useSalesRealtime } from "@/features/sales/api";
 import { FilterBar, useResultFilters } from "@/features/results/filters";
 import { useResults } from "@/features/results/use-results";
@@ -47,10 +50,27 @@ const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
 ];
 
 export function CampaignsPage() {
+  const { workspace } = useWorkspace();
+  return (
+    <MetaControlsProvider currency={workspace.currency}>
+      <CampaignsContent />
+    </MetaControlsProvider>
+  );
+}
+
+function CampaignsContent() {
   const { workspace, canManage } = useWorkspace();
   const base = `/w/${workspace.id}`;
   const filters = useResultFilters();
-  const results = useResults(filters, { tree: true });
+  // Linhas alteradas pelo app ficam na tabela mesmo sem gasto (ex.: acabou de pausar).
+  const results = useResults(filters, { tree: true, keep: useTouchedIds() });
+  const connections = useMetaConnections(workspace.id);
+  const needsWriteScope =
+    canManage &&
+    results.metaConnected &&
+    (connections.data ?? []).some(
+      (cn) => cn.status === "active" && !cn.scopes.includes(WRITE_SCOPE),
+    );
   const sync = useSyncNow(workspace.id);
   const [target, setTarget] = useRoasTarget(workspace.id);
   const [costsOpen, setCostsOpen] = useState(false);
@@ -398,6 +418,28 @@ export function CampaignsPage() {
         </div>
       )}
 
+      {needsWriteScope && tab !== "resumo" && (
+        <Panel>
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+                <ToggleRight className="h-4 w-4" />
+              </span>
+              <div className="text-sm">
+                <p className="font-medium text-foreground">Pause, ative e mude orçamentos daqui</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Reconecte a Meta e aceite a permissão de gerenciar anúncios para liberar as chaves
+                  da tabela.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="shrink-0">
+              <Link to={`${base}/integracoes`}>Reconectar a Meta</Link>
+            </Button>
+          </div>
+        </Panel>
+      )}
+
       {c && results.metaConnected && tab === "campanhas" && (
         <Panel
           title="Campanha › Conjunto › Anúncio"
@@ -417,6 +459,7 @@ export function CampaignsPage() {
                 totals={treeTotals}
                 currency={cur}
                 target={target}
+                toolbar={<ActionHistoryButton currency={cur} />}
                 unattributed={{
                   sales: withoutCampaign.length,
                   revenueCents: withoutCampaign.reduce((n, s) => n + s.gross_amount_cents, 0),

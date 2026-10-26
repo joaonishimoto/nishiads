@@ -53,6 +53,7 @@ const STATUS_BY_KIND: Record<WriteErrorKind, number> = {
   missing_permission: 403,
   rate_limit: 429,
   meta_error: 502,
+  internal: 500,
 };
 
 Deno.serve(async (req) => {

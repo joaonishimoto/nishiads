@@ -297,3 +297,21 @@ describe("setMetaBudget", () => {
     expect(meta.calls).toHaveLength(0);
   });
 });
+
+describe("erros inesperados", () => {
+  it("falha do banco vira resultado, sem lançar", async () => {
+    const db = world();
+    const broken = {
+      ...db.admin,
+      from: () => {
+        throw new Error("conexão caiu");
+      },
+    } as unknown as SupabaseClient;
+    const result = await setMetaObjectStatus(
+      broken,
+      { ...base, level: "ad", objectId: "a1", status: "PAUSED" },
+      { fetchFn: graph({}).fetchFn },
+    );
+    expect(result).toMatchObject({ ok: false, kind: "internal" });
+  });
+});

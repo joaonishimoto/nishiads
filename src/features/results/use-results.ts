@@ -16,7 +16,10 @@ import type { ResultFiltersState } from "@/features/results/filters";
  * Tudo que Vendas e Campanhas precisam para o recorte atual: vendas e insights do período
  * e do período anterior (comparação), estrutura da Meta e custos dos produtos.
  */
-export function useResults(filters: ResultFiltersState, { tree = false }: { tree?: boolean } = {}) {
+export function useResults(
+  filters: ResultFiltersState,
+  { tree = false, keep }: { tree?: boolean; keep?: ReadonlySet<string> } = {},
+) {
   const { workspace } = useWorkspace();
   const accounts = useAdAccounts(workspace.id);
   const tracked = useMemo(() => (accounts.data ?? []).filter((a) => a.is_tracked), [accounts.data]);
@@ -55,7 +58,15 @@ export function useResults(filters: ResultFiltersState, { tree = false }: { tree
       series: dailySeries(s, ins, filters.days, workspace.timezone, workspace.currency),
       tree:
         tree && structure.data
-          ? buildTree(structure.data, s, ins, productMap, workspace.currency, filters.accountId)
+          ? buildTree(
+              structure.data,
+              s,
+              ins,
+              productMap,
+              workspace.currency,
+              filters.accountId,
+              keep,
+            )
           : null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,6 +83,7 @@ export function useResults(filters: ResultFiltersState, { tree = false }: { tree
     workspace.currency,
     workspace.timezone,
     tree,
+    keep,
   ]);
 
   const pending =

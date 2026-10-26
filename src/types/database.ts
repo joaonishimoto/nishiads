@@ -86,8 +86,32 @@ type AdEntityBase = Timestamps & {
   effective_status: string | null;
 };
 
-type CampaignRow = AdEntityBase & { objective: string | null };
-type AdsetRow = AdEntityBase & { campaign_id: string };
+/** Orçamento em centavos; nulo no nível que não guarda orçamento (CBO × conjunto). */
+type BudgetColumns = { daily_budget_cents: number | null; lifetime_budget_cents: number | null };
+type CampaignRow = AdEntityBase & BudgetColumns & { objective: string | null };
+type AdsetRow = AdEntityBase & BudgetColumns & { campaign_id: string };
+
+export type MetaActionLevel = "campaign" | "adset" | "ad";
+export type MetaActionKind = "pause" | "activate" | "set_budget";
+
+type MetaActionLogRow = {
+  id: string;
+  workspace_id: string;
+  ad_account_id: string | null;
+  level: MetaActionLevel;
+  object_id: string;
+  external_id: string;
+  object_name: string | null;
+  action: MetaActionKind;
+  previous: Json | null;
+  requested: Json;
+  ok: boolean;
+  error: string | null;
+  source: "manual" | "rule";
+  actor_user_id: string | null;
+  context: Json;
+  created_at: string;
+};
 type AdRow = AdEntityBase & {
   campaign_id: string;
   adset_id: string;
@@ -250,6 +274,19 @@ export type Database = {
       ads: Table<
         AdRow,
         "workspace_id" | "ad_account_id" | "campaign_id" | "adset_id" | "external_id" | "name"
+      >;
+      meta_action_log: Table<
+        MetaActionLogRow,
+        "workspace_id" | "level" | "object_id" | "external_id" | "action" | "ok",
+        [
+          {
+            foreignKeyName: "meta_action_log_actor_user_id_fkey";
+            columns: ["actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ]
       >;
       ad_insights_daily: Table<AdInsightDailyRow, "ad_id" | "date" | "workspace_id" | "ad_account_id">;
       checkout_integrations: Table<CheckoutIntegrationRow, "workspace_id" | "provider" | "name">;

@@ -11,14 +11,21 @@ import { cn } from "@/lib/utils";
 import { derived, type NodeMetrics, type TreeNode } from "@/features/results/metrics";
 import { fmt, RoasBadge, Thumb } from "@/features/results/components";
 import { DELIVERY_LABELS } from "@/features/results/campaign-tree";
+import { DeliveryToggle } from "@/features/meta/controls";
 
-export type CreativeItem = { node: TreeNode; campaign: string; adset: string };
+export type CreativeItem = {
+  node: TreeNode;
+  campaign: string;
+  adset: string;
+  /** Campanha e conjunto do anúncio. */
+  ancestors: TreeNode[];
+};
 
 /** Anúncios da árvore, com o caminho de cada um. */
 export function flattenAds(tree: TreeNode[]): CreativeItem[] {
   return tree.flatMap((c) =>
     c.children.flatMap((s) =>
-      s.children.map((a) => ({ node: a, campaign: c.name, adset: s.name })),
+      s.children.map((a) => ({ node: a, campaign: c.name, adset: s.name, ancestors: [c, s] })),
     ),
   );
 }
@@ -335,12 +342,15 @@ function CreativeCard({
           />
         </span>
         <div className="min-w-0 flex-1">
-          <p
-            className="line-clamp-2 text-sm font-medium leading-5 text-foreground"
-            title={item.node.name}
-          >
-            {item.node.name}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <p
+              className="line-clamp-2 text-sm font-medium leading-5 text-foreground"
+              title={item.node.name}
+            >
+              {item.node.name}
+            </p>
+            <DeliveryToggle node={item.node} ancestors={item.ancestors} />
+          </div>
           <p
             className="mt-0.5 truncate text-xs text-muted-foreground"
             title={`${item.campaign} › ${item.adset}`}

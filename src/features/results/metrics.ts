@@ -49,6 +49,10 @@ export type CampaignEntity = {
   name: string;
   ad_account_id: string;
   effective_status: string | null;
+  /** Status que o anunciante escolheu (ACTIVE/PAUSED); a entrega real é o effective_status. */
+  status?: string | null;
+  daily_budget_cents?: number | null;
+  lifetime_budget_cents?: number | null;
 };
 export type AdsetEntity = CampaignEntity & { campaign_id: string };
 export type AdEntity = AdsetEntity & {
@@ -302,11 +306,21 @@ export type NodeMetrics = {
 
 export type Level = "campaign" | "adset" | "ad";
 
+export type Budget = { kind: "daily" | "lifetime"; cents: number };
+
 export type TreeNode = {
   id: string;
   level: Level;
   name: string;
+  accountId: string;
+  /** Entrega real (effective_status). */
   status: string | null;
+  /** Status escolhido na Meta (ACTIVE/PAUSED): é o que a chave liga e desliga. */
+  configuredStatus: string | null;
+  /** Orçamento próprio. Nulo em anúncio, em conjunto de campanha CBO e antes da sincronização. */
+  budget: Budget | null;
+  /** Conjunto cuja campanha tem orçamento (CBO): o orçamento se muda na campanha. */
+  usesCampaignBudget: boolean;
   thumbnailUrl: string | null;
   previewLink: string | null;
   metrics: NodeMetrics;
@@ -332,14 +346,28 @@ export const derived = {
   profit: (m: NodeMetrics) => m.revenueCents - m.feesCents - m.costCents - m.spendCents,
 };
 
-function isRelevant(node: TreeNode): boolean {
-  return node.metrics.spendCents > 0 || node.metrics.sales > 0 || node.status === "ACTIVE";
+export function budgetOf(
+  e: Pick<CampaignEntity, "daily_budget_cents" | "lifetime_budget_cents">,
+): Budget | null {
+  if (e.daily_budget_cents) return { kind: "daily", cents: e.daily_budget_cents };
+  if (e.lifetime_budget_cents) return { kind: "lifetime", cents: e.lifetime_budget_cents };
+  return null;
+}
+
+function isRelevant(node: TreeNode, keep?: ReadonlySet<string>): boolean {
+  return (
+    node.metrics.spendCents > 0 ||
+    node.metrics.sales > 0 ||
+    node.status === "ACTIVE" ||
+    !!keep?.has(node.id)
+  );
 }
 
 /**
  * Árvore do Gerenciador de Anúncios. Gasto sobe dos anúncios para conjunto e campanha;
  * vendas contam em cada nível pelo id atribuído (uma venda só com campanha conta na
- * campanha, mesmo sem anúncio). Ficam as linhas com gasto, venda ou status ativo.
+ * campanha, mesmo sem anúncio). Ficam as linhas com gasto, venda ou status ativo, e as de
+ * `keep` (ex.: acabou de ser pausada pelo app e não pode sumir da tela).
  */
 export function buildTree(
   structure: AdStructure,
@@ -348,6 +376,7 @@ export function buildTree(
   products: Map<string, ProductCost>,
   currency: string,
   accountId: string | null,
+  keep?: ReadonlySet<string>,
 ): TreeNode[] {
   const inAccount = <T extends { ad_account_id: string }>(e: T) =>
     !accountId || e.ad_account_id === accountId;
@@ -358,7 +387,11 @@ export function buildTree(
     id: e.id,
     level,
     name: e.name,
+    accountId: e.ad_account_id,
     status: e.effective_status,
+    configuredStatus: e.status ?? null,
+    budget: level === "ad" ? null : budgetOf(e),
+    usesCampaignBudget: false,
     thumbnailUrl: e.thumbnail_url ?? null,
     previewLink: e.preview_link ?? null,
     metrics: emptyMetrics(),
@@ -405,16 +438,17 @@ export function buildTree(
   }
   for (const a of structure.ads) {
     const n = ads.get(a.id);
-    if (n && isRelevant(n)) adsets.get(a.adset_id)?.children.push(n);
+    if (n && isRelevant(n, keep)) adsets.get(a.adset_id)?.children.push(n);
   }
   for (const a of structure.adsets) {
     const n = adsets.get(a.id);
-    if (n && (isRelevant(n) || n.children.length))
-      campaigns.get(adsetParent.get(a.id) ?? "")?.children.push(n);
+    const parent = campaigns.get(adsetParent.get(a.id) ?? "");
+    if (n && parent?.budget) n.usesCampaignBudget = true;
+    if (n && (isRelevant(n, keep) || n.children.length)) parent?.children.push(n);
   }
   const bySpend = (a: TreeNode, b: TreeNode) =>
     b.metrics.spendCents - a.metrics.spendCents || b.metrics.revenueCents - a.metrics.revenueCents;
-  const roots = [...campaigns.values()].filter((c) => isRelevant(c) || c.children.length);
+  const roots = [...campaigns.values()].filter((c) => isRelevant(c, keep) || c.children.length);
   for (const c of roots) {
     c.children.sort(bySpend);
     for (const a of c.children) a.children.sort(bySpend);

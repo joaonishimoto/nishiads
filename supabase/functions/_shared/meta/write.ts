@@ -34,7 +34,8 @@ export type WriteErrorKind =
   | "needs_reconnect"
   | "missing_permission"
   | "rate_limit"
-  | "meta_error";
+  | "meta_error"
+  | "internal";
 
 export type WriteResult =
   | { ok: true; object: ObjectState }
@@ -237,7 +238,9 @@ async function record(
 /** Traduz o erro da Meta para o resultado, marcando a conexão quando o token caiu. */
 async function fromMetaError(p: Prepared, cause: unknown): Promise<{ kind: WriteErrorKind; error: string }> {
   if (cause instanceof WriteError) return { kind: cause.kind, error: cause.message };
-  if (!(cause instanceof MetaApiError)) throw cause;
+  if (!(cause instanceof MetaApiError)) {
+    return { kind: "internal", error: `Erro inesperado: ${errorMessage(cause)}`.slice(0, 300) };
+  }
   switch (cause.kind) {
     case "token":
       await markNeedsReconnect(p.admin, p.connectionId, cause.message);
@@ -262,7 +265,24 @@ type Plan = {
   write: () => Promise<void>;
 };
 
+/** Nunca lança: erro inesperado (banco, Vault) volta como kind "internal". */
 async function perform(
+  admin: SupabaseClient,
+  input: BaseInput,
+  options: WriteOptions,
+  plan: (p: Prepared) => Promise<Plan> | Plan,
+  fallbackAction: Plan["action"],
+  fallbackRequested: unknown,
+): Promise<WriteResult> {
+  try {
+    return await performUnsafe(admin, input, options, plan, fallbackAction, fallbackRequested);
+  } catch (cause) {
+    log("error", "meta_write_internal_error", { objectId: input.objectId, error: errorMessage(cause) });
+    return { ok: false, kind: "internal", error: "Erro inesperado ao falar com a Meta. Tente de novo." };
+  }
+}
+
+async function performUnsafe(
   admin: SupabaseClient,
   input: BaseInput,
   options: WriteOptions,
@@ -314,6 +334,7 @@ async function perform(
       daily_budget_cents: prepared.row.daily_budget_cents ?? null,
       lifetime_budget_cents: prepared.row.lifetime_budget_cents ?? null,
       ...(steps.requested as Partial<ObjectState>),
+      ...(steps.action === "pause" ? { effective_status: "PAUSED" } : {}),
     };
   }
   log("info", "meta_write_ok", { objectId: input.objectId, level: input.level, action: steps.action, source: input.source });

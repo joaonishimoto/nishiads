@@ -45,7 +45,7 @@ No painel do Supabase → **Authentication → URL Configuration**, adicione a U
 | Supabase › Edge Functions › Secrets | `VAPID_SUBJECT` | contato do remetente (`https://...` ou `mailto:...`) |
 | Supabase › Edge Functions › Secrets | `META_APP_ID` | ID do app da Meta |
 | Supabase › Edge Functions › Secrets | `META_APP_SECRET` | chave secreta do app (troca do código e `appsecret_proof`) |
-| Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas*; sem ele, usa `scope=ads_read,business_management` |
+| Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas* (com `ads_read`, `ads_management` e `business_management`); sem ele, usa `scope=ads_read,ads_management,business_management` |
 | Supabase › Edge Functions › Secrets | `APP_URL` | opcional: origens aceitas na volta do login, separadas por vírgula (padrão `https://nishiads.areadeteste.com,http://localhost:5173`) |
 
 Segredos (token da Meta, segredos de webhook, chave VAPID privada) **nunca** vão para o frontend: ficam no Supabase Vault e nos secrets das Edge Functions.
@@ -88,6 +88,7 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 - **Erros:** retry com backoff (2s, 4s, 8s) em erro transitório; token expirado/revogado (190, 102, subcodes 458–467) marca a conexão e as contas como *Reconectar* e manda push para owners/admins. O app avisa 7 dias antes do token expirar.
 - **Versão da API:** `GRAPH_API_VERSION` em `supabase/functions/_shared/meta/graph.ts`, a única ocorrência.
 - **Uma execução por conta:** `service_claim_ad_account_sync` trava a conta; trava com mais de 10 min é retomada.
+- **Controle pelo app** (`meta-actions`): owners e admins pausam e ativam campanha, conjunto ou anúncio e mudam o orçamento (diário ou total, o tipo que o objeto já usa) direto na tabela de Campanhas. Precisa da permissão `ads_management` no login da Meta. A função confere o papel, limita 20 ações por minuto por usuário, confere na Meta onde está o orçamento (campanha CBO × conjunto), faz o POST, relê o objeto e os filhos e grava tudo em `meta_action_log` (Histórico na tela). A lógica fica em `_shared/meta/write.ts` (`setMetaObjectStatus`, `setMetaBudget`), reusada pelas regras automáticas.
 - **Agendar o cron** (uma vez, no SQL Editor): `select private.schedule_meta_sync('https://<ref>.supabase.co');`. Cria o segredo `nishiads_cron_secret` no Vault, que o job manda no header `x-cron-secret`.
 
 ## Testes
@@ -109,7 +110,7 @@ psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_test.sql
 Todo dado pertence a um `workspace`; o usuário pode estar em vários, com papel `owner`, `admin` ou `viewer`.
 
 - **Tenancy:** `profiles`, `workspaces`, `workspace_members`, `workspace_invitations`
-- **Anúncios:** `meta_connections` (token no Vault), `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert)
+- **Anúncios:** `meta_connections` (token no Vault), `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert), `meta_action_log` (alterações feitas pelo app na Meta)
 - **Vendas:** `checkout_integrations`, `products`, `sales` (único em `(workspace_id, provider, external_order_id)`), `webhook_events`
 - **Notificações:** `notification_subscriptions`, `notification_preferences`
 
