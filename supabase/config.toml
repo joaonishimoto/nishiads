@@ -27,3 +27,11 @@ verify_jwt = false
 # Valida o token do usuário dentro da função (funciona com as chaves novas do Supabase).
 [functions.push]
 verify_jwt = false
+
+# Retorno do Facebook Login não traz JWT; o início (POST) valida o token do usuário na função.
+[functions.meta-oauth]
+verify_jwt = false
+
+# Chamada pelo pg_cron (header x-cron-secret) e pelo app (token do usuário, validado na função).
+[functions.meta-sync]
+verify_jwt = false
