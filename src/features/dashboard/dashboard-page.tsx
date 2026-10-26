@@ -1,9 +1,12 @@
 import { Fragment, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   CircleDashed,
+  Coins,
   FlaskConical,
+  Plug,
   Receipt,
   RefreshCw,
   Search,
@@ -25,7 +28,7 @@ import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useReattributeSales, useSalesRealtime } from "@/features/sales/api";
 import { ATTRIBUTION_META } from "@/features/sales/meta";
 import { originParts } from "@/features/sales/attribution-path";
-import { FilterBar, useResultFilters } from "@/features/results/filters";
+import { FilterBar, useResultFilters, type ResultFiltersState } from "@/features/results/filters";
 import { useResults } from "@/features/results/use-results";
 import {
   change,
@@ -33,16 +36,19 @@ import {
   saleInstant,
   topOrigins,
   type ResultSale,
-  type Totals,
 } from "@/features/results/metrics";
 import { addDays, ymdInZone } from "@/lib/period";
 import {
   fmt,
   LiveBadge,
   MetricCard,
+  RoasTargetButton,
   SpendRevenueChart,
   Thumb,
+  useRoasTarget,
 } from "@/features/results/components";
+import { CampaignRanking, flattenAds, TopCreatives } from "@/features/results/campaign-visuals";
+import { ProductCostsDialog } from "@/features/results/product-costs";
 import { SaleLine, useFreshIds } from "@/features/results/recent-sales";
 import { friendlyError } from "@/lib/errors";
 import { formatMoney, plural } from "@/lib/format";
@@ -66,7 +72,8 @@ const STATUS_FILTERS: { key: StatusFilter; label: string; match: (s: SaleStatus)
   { key: "canceled", label: "Recusadas", match: (s) => s === "canceled" },
 ];
 
-export function SalesPage() {
+/** Métricas gerais do negócio (faturamento, gasto, lucro, ROAS, CPA) e a lista de vendas. */
+export function DashboardPage() {
   const { workspace } = useWorkspace();
   const [params, setParams] = useSearchParams();
   const view: View =
@@ -76,7 +83,8 @@ export function SalesPage() {
         ? "trials"
         : "all";
   const filters = useResultFilters();
-  const results = useResults(filters);
+  const results = useResults(filters, { tree: true });
+  const [costsOpen, setCostsOpen] = useState(false);
   useSalesRealtime(workspace.id);
 
   const setView = (v: View) =>
@@ -94,9 +102,17 @@ export function SalesPage() {
 
   const header = (
     <PageHeader
-      title="Vendas"
-      subtitle="Cada venda com a campanha, o conjunto e o criativo de origem."
-      actions={<LiveBadge />}
+      title="Dashboard"
+      subtitle="Faturamento, gasto, lucro, ROAS e CPA do período, com cada venda e a origem dela."
+      actions={
+        <>
+          <LiveBadge />
+          <Button variant="outline" onClick={() => setCostsOpen(true)}>
+            <Coins />
+            Custos
+          </Button>
+        </>
+      }
     />
   );
   if (results.isPending && !results.computed) return <PageSkeleton variant="table" />;
@@ -105,19 +121,19 @@ export function SalesPage() {
       <div className="space-y-5">
         {header}
         <LoadError onRetry={results.retry} retrying={results.isFetching}>
-          Não foi possível carregar as vendas.
+          Não foi possível carregar o dashboard.
         </LoadError>
       </div>
     );
   }
 
-  const { sales, totals, previous, series } = results.computed;
+  const { sales } = results.computed;
   const unmatched = sales.filter(
     (s) => s.attribution_status !== "matched" && s.status !== "trialing",
   );
   const trials = sales.filter((s) => s.status === "trialing");
   const tabs: { key: View; label: string; count?: number }[] = [
-    { key: "all", label: "Todas" },
+    { key: "all", label: "Resumo" },
     { key: "unmatched", label: "Sem origem", count: unmatched.length },
     ...(trials.length > 0 || view === "trials"
       ? [{ key: "trials" as const, label: "Testes", count: trials.length }]
@@ -172,36 +188,47 @@ export function SalesPage() {
       </div>
 
       {view === "all" && (
-        <AllView
-          sales={sales}
-          totals={totals}
-          previous={previous}
-          series={series}
-          comparison={filters.comparisonLabel}
-        />
+        <AllView results={results} filters={filters} onOpenCosts={() => setCostsOpen(true)} />
       )}
       {view === "unmatched" && <UnmatchedView sales={unmatched} />}
       {view === "trials" && <TrialsView trials={trials} />}
+
+      <ProductCostsDialog
+        open={costsOpen}
+        onOpenChange={setCostsOpen}
+        products={results.products}
+      />
     </div>
   );
 }
 
 function AllView({
-  sales,
-  totals: t,
-  previous: p,
-  series,
-  comparison,
+  results,
+  filters,
+  onOpenCosts,
 }: {
-  sales: ResultSale[];
-  totals: Totals;
-  previous: Totals | null;
-  series: NonNullable<ReturnType<typeof useResults>["computed"]>["series"];
-  comparison: string;
+  results: ReturnType<typeof useResults>;
+  filters: ResultFiltersState;
+  onOpenCosts: () => void;
 }) {
   const { workspace } = useWorkspace();
+  const navigate = useNavigate();
   const base = `/w/${workspace.id}`;
   const cur = workspace.currency;
+  const [target, setTarget] = useRoasTarget(workspace.id);
+  const { sales, totals: t, previous: p, series, tree: rawTree } = results.computed!;
+  const tree = rawTree ?? [];
+  const meta = results.metaConnected;
+  const comparison = filters.comparisonLabel;
+  const creatives = useMemo(() => flattenAds(tree), [tree]);
+  // Hoje: a Meta só tem o gasto do dia inteiro de ontem, então gasto e derivados ficam sem comparação.
+  const spendChange = (a: number | null, b: number | null) =>
+    filters.partialComparison ? null : change(a, b);
+  const noCosts =
+    results.products.length > 0 &&
+    results.products.every((x) => !x.cost_cents && !x.fee_percent_bps && !x.fee_fixed_cents);
+  const openCampaigns = (aba?: string) =>
+    navigate({ pathname: `${base}/campanhas`, search: aba ? `?aba=${aba}` : "" });
   const [params, setParams] = useSearchParams();
   const status = (STATUS_FILTERS.find((f) => f.key === params.get("status"))?.key ??
     "all") as StatusFilter;
@@ -214,13 +241,82 @@ function AllView({
 
   return (
     <div className="space-y-5">
+      {!meta && (
+        <Panel>
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+                <Plug className="h-4 w-4" />
+              </span>
+              <div className="text-sm">
+                <p className="font-medium text-foreground">
+                  Conecte a Meta Ads para ver gasto, ROAS e lucro
+                </p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Por enquanto, mostramos só o que veio das vendas.
+                </p>
+              </div>
+            </div>
+            <Button asChild className="shrink-0">
+              <Link to={`${base}/integracoes`}>Conectar Meta Ads</Link>
+            </Button>
+          </div>
+        </Panel>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard
           emphasis
-          label="Faturamento aprovado"
+          label="Faturamento"
           value={formatMoney(t.revenueCents, cur)}
           delta={change(t.revenueCents, p?.revenueCents ?? null)}
           hint={comparison}
+        />
+        <MetricCard
+          label="Gasto"
+          value={meta ? formatMoney(t.spendCents, cur) : "—"}
+          delta={meta ? spendChange(t.spendCents, p?.spendCents ?? null) : null}
+          invert
+          hint={filters.productId ? "de todas as campanhas" : meta ? comparison : "conecte a Meta"}
+          info={
+            filters.productId
+              ? "A Meta não separa gasto por produto: o gasto é o das campanhas filtradas."
+              : undefined
+          }
+        />
+        <MetricCard
+          label="Lucro"
+          value={formatMoney(t.profitCents, cur)}
+          tone={t.profitCents < 0 ? "danger" : t.profitCents > 0 ? "success" : undefined}
+          delta={spendChange(t.profitCents, p?.profitCents ?? null)}
+          hint={
+            noCosts ? (
+              <button
+                type="button"
+                className="underline-offset-2 hover:text-primary hover:underline"
+                onClick={onOpenCosts}
+              >
+                informe os custos
+              </button>
+            ) : (
+              comparison
+            )
+          }
+          info="Faturamento − taxas do checkout − custo dos produtos − gasto em anúncios."
+        />
+        <MetricCard
+          label="ROAS"
+          value={fmt.roas(t.roas)}
+          delta={spendChange(t.roas, p?.roas ?? null)}
+          hint={t.roas === null ? "sem gasto no período" : `meta ${fmt.roas(target)}`}
+          info="Faturamento dividido pelo gasto. Inclui vendas sem origem identificada."
+        />
+        <MetricCard
+          label="CPA"
+          value={fmt.money(t.cpaCents, cur)}
+          delta={spendChange(t.cpaCents, p?.cpaCents ?? null)}
+          invert
+          hint="custo por venda"
         />
         <MetricCard
           label="Vendas aprovadas"
@@ -245,6 +341,12 @@ function AllView({
           info="Vendas aprovadas ligadas a campanha, conjunto e criativo."
         />
       </div>
+      {t.otherCurrencySpend && (
+        <p className="flex items-start gap-2 text-xs text-warning-strong">
+          <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+          Há conta de anúncio em outra moeda. O gasto dela fica fora dos totais em {cur}.
+        </p>
+      )}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm sm:flex sm:flex-wrap sm:gap-x-8">
         <QuickStat
           label="Pendentes"
@@ -279,24 +381,36 @@ function AllView({
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Panel
-          title={series.mode === "hour" ? "Faturamento por hora" : "Faturamento por dia"}
-          description={`${plural(t.approvedCount, "venda aprovada", "vendas aprovadas")} no período`}
+          title={
+            series.mode === "hour"
+              ? "Faturamento por hora"
+              : meta
+                ? "Gasto × faturamento por dia"
+                : "Faturamento por dia"
+          }
+          description={
+            series.mode === "hour"
+              ? meta
+                ? "A Meta informa o gasto por dia, não por hora."
+                : `${plural(t.approvedCount, "venda aprovada", "vendas aprovadas")} no período`
+              : `${formatMoney(t.revenueCents, cur)} faturados${meta ? ` · ${formatMoney(t.spendCents, cur)} investidos` : ""}`
+          }
         >
           <SpendRevenueChart
             points={series.points}
             mode={series.mode}
             currency={cur}
-            showSpend={false}
+            showSpend={meta}
           />
         </Panel>
         <Panel
           title="Criativos que mais venderam"
           action={
             <Link
-              to={`${base}/campanhas`}
+              to={`${base}/campanhas?aba=criativos`}
               className="shrink-0 text-xs font-medium text-primary hover:underline"
             >
-              Ver ROAS
+              Ver métricas
             </Link>
           }
         >
@@ -332,6 +446,37 @@ function AllView({
           )}
         </Panel>
       </div>
+
+      {meta && (
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <Panel
+            title="Campanhas"
+            description="Faturamento contra gasto de cada campanha, na mesma escala."
+            action={<RoasTargetButton target={target} onChange={setTarget} />}
+          >
+            {tree.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                Nenhuma campanha com gasto no período.
+              </p>
+            ) : (
+              <CampaignRanking
+                nodes={tree}
+                currency={cur}
+                target={target}
+                onOpenAll={() => openCampaigns()}
+              />
+            )}
+          </Panel>
+          <Panel title="Criativos que mais dão lucro">
+            <TopCreatives
+              items={creatives}
+              currency={cur}
+              target={target}
+              onOpenAll={creatives.length ? () => openCampaigns("criativos") : undefined}
+            />
+          </Panel>
+        </div>
+      )}
 
       <SalesFeed
         sales={visible}

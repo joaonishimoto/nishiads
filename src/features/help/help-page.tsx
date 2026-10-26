@@ -452,7 +452,7 @@ const PROBLEMS: [string, ReactNode][] = [
   ],
   [
     "Vendas Parciais",
-    "A conta de anúncios ainda não foi sincronizada. Depois de sincronizar, use Refazer atribuição em Vendas.",
+    "A conta de anúncios ainda não foi sincronizada. Depois de sincronizar, use Refazer atribuição no Dashboard › Sem origem.",
   ],
   [
     "Meta: “URL bloqueada” ao conectar",
@@ -789,8 +789,8 @@ export function HelpPage() {
             </div>
             <p>
               <strong>Parciais</strong> viram Atribuídas quando a conta de anúncios sincroniza
-              (automático) ou com <strong>Refazer atribuição</strong> em {link("/vendas", "Vendas")}
-              . <strong>Sem origem</strong> não tem conserto depois: as UTMs não chegaram ao
+              (automático) ou com <strong>Refazer atribuição</strong> no {link("/dashboard", "Dashboard")}
+              › Sem origem. <strong>Sem origem</strong> não tem conserto depois: as UTMs não chegaram ao
               checkout. Confira os parâmetros e o repasse para as próximas vendas.
             </p>
           </Section>
@@ -844,7 +844,7 @@ export function HelpPage() {
               <li>
                 <strong>UTMs:</strong> abra a sua página com UTMs de teste, por exemplo{" "}
                 <C>?utm_campaign=Teste|1&amp;utm_content=Criativo|2</C>, e faça uma compra de teste.
-                Em {link("/vendas", "Vendas")}, abra a venda: as UTMs aparecem no detalhe.
+                No {link("/dashboard", "Dashboard")}, abra a venda: as UTMs aparecem no detalhe.
               </li>
               <li>
                 Ative as notificações em {link("/ajustes/notificacoes", "Ajustes › Notificações")}{" "}

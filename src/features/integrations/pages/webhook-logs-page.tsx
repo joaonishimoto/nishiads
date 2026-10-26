@@ -181,7 +181,7 @@ function LogRow({ log }: { log: WebhookLog }) {
               <>
                 {" · "}
                 <Link
-                  to={`/w/${workspace.id}/vendas/${log.sale_id}`}
+                  to={`/w/${workspace.id}/dashboard/vendas/${log.sale_id}`}
                   className="font-medium text-primary hover:underline"
                 >
                   Ver venda

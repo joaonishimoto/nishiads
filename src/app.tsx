@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
+import { createBrowserRouter, Navigate, RouterProvider, useLocation, useParams } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +13,7 @@ import { WorkspaceSettingsPage } from "@/features/workspaces/pages/workspace-set
 import { MembersPage } from "@/features/workspaces/pages/members";
 import { AccountPage } from "@/features/account/account-page";
 import { NotificationsPage } from "@/features/notifications/pages/notifications-page";
-import { SalesPage } from "@/features/sales/pages/sales-page";
+import { DashboardPage } from "@/features/dashboard/dashboard-page";
 import { SaleDetailPage } from "@/features/sales/pages/sale-detail-page";
 import { IntegrationsPage } from "@/features/integrations/pages/integrations-page";
 import { WebhookLogsPage } from "@/features/integrations/pages/webhook-logs-page";
@@ -25,6 +25,13 @@ import { NotFoundPage } from "@/pages/not-found";
 import { ConfigErrorPage } from "@/pages/config-error";
 import { env } from "@/lib/env";
 import { queryClient } from "@/lib/query-client";
+
+function LegacySalesRedirect() {
+  const { workspaceId, saleId } = useParams();
+  const { search } = useLocation();
+  const pathname = `/w/${workspaceId}/dashboard${saleId ? `/vendas/${saleId}` : ""}`;
+  return <Navigate to={{ pathname, search }} replace />;
+}
 
 const router = createBrowserRouter([
   {
@@ -47,8 +54,11 @@ const router = createBrowserRouter([
             element: <AppShell />,
             children: [
               { index: true, element: <OverviewPage /> },
-              { path: "vendas", element: <SalesPage /> },
-              { path: "vendas/:saleId", element: <SaleDetailPage /> },
+              { path: "dashboard", element: <DashboardPage /> },
+              { path: "dashboard/vendas/:saleId", element: <SaleDetailPage /> },
+              // Endereços antigos (notificações já enviadas, favoritos) caem no Dashboard.
+              { path: "vendas", element: <LegacySalesRedirect /> },
+              { path: "vendas/:saleId", element: <LegacySalesRedirect /> },
               { path: "campanhas", element: <CampaignsPage /> },
               { path: "alertas", element: <AlertsPage /> },
               { path: "integracoes", element: <IntegrationsPage /> },

@@ -4,6 +4,11 @@ Vendas de infoprodutos e e-commerce atribuídas à **campanha, conjunto e criati
 
 **Stack:** React + Vite + TypeScript, Tailwind v4, shadcn/ui (tokens da marca Nishistack), TanStack Query, React Router · Supabase (Postgres, Auth, RLS, Vault, Edge Functions, Realtime, pg_cron) · Vercel.
 
+## Telas
+
+- **Dashboard** (`/w/:id/dashboard`): métricas gerais do período (faturamento, gasto, lucro, ROAS, CPA, ticket, vendas com origem), gráfico gasto × faturamento, ranking de campanhas e criativos, e a lista de vendas com as abas *Sem origem* e *Testes*. O detalhe de uma venda fica em `/dashboard/vendas/:saleId`; os endereços antigos `/vendas` redirecionam para cá.
+- **Campanhas** (`/w/:id/campanhas`): só as campanhas, sem KPIs gerais. Tabela Campanha › Conjunto › Anúncio com as métricas de cada linha e os controles de pausar, ativar e mudar orçamento, e a aba *Criativos*.
+
 ## Status das etapas
 
 | # | Etapa | Status |
