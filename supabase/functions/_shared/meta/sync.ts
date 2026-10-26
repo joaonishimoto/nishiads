@@ -9,6 +9,7 @@ import { vapidFromEnv } from "../notify/vapid.ts";
 import { GraphClient, MetaApiError, type Usage } from "./graph.ts";
 import {
   accountStatusFromMeta,
+  budgetToCents,
   dateChunks,
   INSIGHT_FIELDS,
   insightsWindow,
@@ -102,8 +103,9 @@ async function loadMap(admin: SupabaseClient, table: "campaigns" | "adsets" | "a
 }
 
 type Status = { status?: string; effective_status?: string };
-type MetaCampaign = Status & { id: string; name: string; objective?: string };
-type MetaAdset = Status & { id: string; name: string; campaign_id: string };
+type Budget = { daily_budget?: string; lifetime_budget?: string };
+type MetaCampaign = Status & Budget & { id: string; name: string; objective?: string };
+type MetaAdset = Status & Budget & { id: string; name: string; campaign_id: string };
 type MetaAd = Status & {
   id: string;
   name: string;
@@ -183,14 +185,18 @@ async function run(ctx: Ctx) {
 
   // 2. Estrutura
   const metaCampaigns = await collect<MetaCampaign>(ctx, `${act}/campaigns`, {
-    fields: "id,name,status,effective_status,objective",
+    fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget",
   });
   const campaigns = await upsertMap(admin, "campaigns", metaCampaigns.map((c) => ({
     ...base, external_id: c.id, name: c.name, status: c.status ?? null, effective_status: c.effective_status ?? null,
     objective: c.objective ?? null,
+    daily_budget_cents: budgetToCents(c.daily_budget, currency),
+    lifetime_budget_cents: budgetToCents(c.lifetime_budget, currency),
   })));
 
-  const metaAdsets = await collect<MetaAdset>(ctx, `${act}/adsets`, { fields: "id,name,status,effective_status,campaign_id" });
+  const metaAdsets = await collect<MetaAdset>(ctx, `${act}/adsets`, {
+    fields: "id,name,status,effective_status,campaign_id,daily_budget,lifetime_budget",
+  });
   // Pai fora da lista (ex.: campanha arquivada): cria um registro mínimo para não perder o filho.
   const orphanCampaigns = [...new Set(metaAdsets.map((a) => a.campaign_id).filter((id) => !campaigns.has(id)))];
   if (orphanCampaigns.length) {
@@ -200,6 +206,8 @@ async function run(ctx: Ctx) {
   const adsets = await upsertMap(admin, "adsets", metaAdsets.map((a) => ({
     ...base, campaign_id: campaigns.get(a.campaign_id), external_id: a.id, name: a.name, status: a.status ?? null,
     effective_status: a.effective_status ?? null,
+    daily_budget_cents: budgetToCents(a.daily_budget, currency),
+    lifetime_budget_cents: budgetToCents(a.lifetime_budget, currency),
   })));
 
   const adFields = "id,name,status,effective_status,adset_id,campaign_id,preview_shareable_link,";

@@ -20,6 +20,8 @@ export class MetaApiError extends Error {
     readonly kind: MetaErrorKind,
     /** Segundos até a Meta liberar de novo (quando informado). */
     readonly retryAfterSeconds: number | null = null,
+    /** Mensagem para o usuário (error_user_msg), quando a Meta manda. */
+    readonly userMessage: string | null = null,
   ) {
     super(message);
     this.name = "MetaApiError";
@@ -131,10 +133,33 @@ export class GraphClient {
   /** GET com retry exponencial (2s, 4s, 8s) em erro transitório ou rate limit curto. */
   async get<T>(pathOrUrl: string, params: Record<string, string | number> = {}): Promise<T> {
     const url = await this.buildUrl(pathOrUrl, params);
+    return this.request<T>(url, { headers: { accept: "application/json" } });
+  }
+
+  /**
+   * POST (escrita: status, orçamento). Os parâmetros vão no corpo do formulário, junto com
+   * o token e o appsecret_proof. Só use para escritas idempotentes (definir um valor), porque
+   * o retry pode repetir a chamada.
+   */
+  async post<T>(path: string, params: Record<string, string | number>): Promise<T> {
+    const url = new URL(`${GRAPH_BASE_URL}/${path.replace(/^\//, "")}`);
+    const body = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) body.set(k, String(v));
+    body.set("access_token", this.options.accessToken);
+    const proof = await this.proof;
+    if (proof) body.set("appsecret_proof", proof);
+    return this.request<T>(url, {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+  }
+
+  private async request<T>(url: URL, init: RequestInit): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       let response: Response;
       try {
-        response = await this.fetchFn(url, { headers: { accept: "application/json" } });
+        response = await this.fetchFn(url, init);
       } catch (cause) {
         if (attempt >= this.maxRetries) {
           throw new MetaApiError(`Falha de rede com a Meta: ${String(cause)}`, 0, null, null, "transient");
@@ -145,7 +170,9 @@ export class GraphClient {
       const usage = parseUsage(response.headers);
       this.options.onUsage?.(usage);
       const body = (await response.json().catch(() => null)) as
-        | (T & { error?: { message?: string; code?: number; error_subcode?: number } })
+        | (T & {
+          error?: { message?: string; code?: number; error_subcode?: number; error_user_msg?: string; error_user_title?: string };
+        })
         | null;
       if (response.ok && body && !body.error) return body;
 
@@ -160,6 +187,7 @@ export class GraphClient {
         subcode,
         kind,
         usage.regainSeconds || null,
+        err?.error_user_msg || err?.error_user_title || null,
       );
       const waitMs = 2000 * 2 ** attempt;
       // Rate limit longo (minutos) não adianta esperar aqui: o chamador pausa a conta.

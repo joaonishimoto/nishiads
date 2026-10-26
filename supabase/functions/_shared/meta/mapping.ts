@@ -134,3 +134,25 @@ export function mapInsight(row: MetaInsightRow, fallbackCurrency: string): Insig
 export function normalizeAccountId(id: string): string {
   return id.replace(/^act_/, "");
 }
+
+// Orçamentos na Meta vêm e vão na menor unidade da moeda ("offset"): 100 para BRL e USD
+// (centavos), 1 para moedas sem centavos. No banco, tudo é "centavos" (valor × 100), como o
+// gasto. https://developers.facebook.com/docs/marketing-api/currencies
+const OFFSET_ONE = new Set(["CLP", "COP", "CRC", "HUF", "ISK", "IDR", "JPY", "KRW", "PYG", "TWD", "VND"]);
+
+export function currencyOffset(currency: string | null | undefined): number {
+  return OFFSET_ONE.has((currency ?? "").toUpperCase()) ? 1 : 100;
+}
+
+/** "5000" (menor unidade da Meta) → centavos. Vazio ou "0" é "sem orçamento neste nível". */
+export function budgetToCents(value: string | number | null | undefined, currency: string): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * (100 / currencyOffset(currency)));
+}
+
+/** Centavos → menor unidade da Meta (inteiro). */
+export function centsToBudget(cents: number, currency: string): number {
+  return Math.round(cents / (100 / currencyOffset(currency)));
+}
