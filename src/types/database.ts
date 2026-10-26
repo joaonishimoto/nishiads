@@ -230,7 +230,65 @@ type NotificationPreferencesRow = {
   quiet_hours_start: string | null;
   quiet_hours_end: string | null;
   sound_enabled: boolean;
+  notify_alerts: boolean;
   updated_at: string;
+};
+
+export type AlertCondition = "spend_without_sale" | "roas_below" | "cpa_above";
+export type AlertLevel = "campaign" | "adset" | "ad";
+export type AlertWindow = "today" | "last_3d" | "last_7d";
+export type AlertAction = "notify" | "approve_pause" | "auto_pause";
+export type AlertStatus = "notified" | "pending" | "pausing" | "paused" | "dismissed" | "expired";
+
+type AlertRuleRow = Timestamps & {
+  id: string;
+  workspace_id: string;
+  name: string;
+  enabled: boolean;
+  condition: AlertCondition;
+  level: AlertLevel;
+  time_window: AlertWindow;
+  threshold_cents: number | null;
+  /** numeric: o PostgREST devolve como número. */
+  min_roas: number | null;
+  min_spend_cents: number;
+  action: AlertAction;
+  max_auto_pauses_per_day: number;
+  ad_account_id: string | null;
+  campaign_id: string | null;
+  created_by: string | null;
+  last_evaluated_at: string | null;
+};
+
+type AlertRow = Timestamps & {
+  id: string;
+  workspace_id: string;
+  rule_id: string | null;
+  rule_name: string;
+  condition: AlertCondition;
+  level: AlertLevel;
+  time_window: AlertWindow;
+  action: AlertAction;
+  threshold_cents: number | null;
+  min_roas: number | null;
+  ad_account_id: string;
+  object_id: string;
+  object_external_id: string;
+  object_name: string;
+  period_key: string;
+  currency: string;
+  spend_cents: number;
+  sales: number;
+  revenue_cents: number;
+  roas: number | null;
+  cpa_cents: number | null;
+  status: AlertStatus;
+  auto_action: boolean;
+  error: string | null;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  push_recipients: number;
+  push_delivered: number;
 };
 
 /** Tabela sem escrita pelo app: Insert/Update existem só para tipagem da service_role. */
@@ -343,6 +401,26 @@ export type Database = {
         "workspace_id" | "user_id" | "channel"
       >;
       notification_preferences: Table<NotificationPreferencesRow, "workspace_id" | "user_id">;
+      alert_rules: Table<AlertRuleRow, "workspace_id" | "name" | "condition" | "level">;
+      alerts: Table<
+        AlertRow,
+        | "workspace_id"
+        | "rule_name"
+        | "condition"
+        | "level"
+        | "time_window"
+        | "action"
+        | "ad_account_id"
+        | "object_id"
+        | "object_external_id"
+        | "object_name"
+        | "period_key"
+        | "currency"
+        | "spend_cents"
+        | "sales"
+        | "revenue_cents"
+        | "status"
+      >;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -392,6 +470,32 @@ export type Database = {
           p_user_agent?: string | null;
         };
         Returns: string;
+      };
+      preview_alert_rule: {
+        Args: {
+          p_workspace_id: string;
+          p_condition: AlertCondition;
+          p_level: AlertLevel;
+          p_time_window: AlertWindow;
+          p_threshold_cents: number | null;
+          p_min_roas: number | null;
+          p_min_spend_cents: number;
+          p_ad_account_id?: string | null;
+          p_campaign_id?: string | null;
+        };
+        Returns: {
+          object_id: string;
+          object_name: string;
+          spend_cents: number;
+          sales: number;
+          revenue_cents: number;
+          roas: number | null;
+          cpa_cents: number | null;
+        }[];
+      };
+      dismiss_alert: {
+        Args: { p_alert_id: string };
+        Returns: undefined;
       };
     };
     Enums: {

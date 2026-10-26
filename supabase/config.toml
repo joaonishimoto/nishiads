@@ -39,3 +39,7 @@ verify_jwt = false
 # Valida o token do usuário e o papel (owner/admin) dentro da função.
 [functions.meta-actions]
 verify_jwt = false
+
+# App (token do usuário, validado na função): aprovar a pausa de um alerta e avaliar as regras.
+[functions.alerts]
+verify_jwt = false

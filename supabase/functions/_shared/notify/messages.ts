@@ -18,6 +18,8 @@ export interface PushPayload {
   url: string;
   tag: string;
   silent?: boolean;
+  /** Botões da notificação (Chrome, Edge e Android; o iPhone ignora). */
+  actions?: { action: string; title: string }[];
 }
 
 export function saleNotificationKind(status: string): SaleNotificationKind | null {

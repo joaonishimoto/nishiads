@@ -3,6 +3,8 @@
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
+const supportsActions = typeof Notification !== "undefined" && "maxActions" in Notification;
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -18,6 +20,8 @@ self.addEventListener("push", (event) => {
       badge: "/icon-192.png",
       tag: data.tag,
       silent: Boolean(data.silent),
+      // Botões (Chrome, Edge, Android; o Safari não tem). "Pausar" abre o alerta já com a confirmação.
+      ...(supportsActions && Array.isArray(data.actions) ? { actions: data.actions.slice(0, 2) } : {}),
       data: { url: data.url || "/" },
     }),
   );
@@ -25,7 +29,9 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  const url = new URL(event.notification.data?.url || "/", self.location.origin);
+  if (event.action === "pause") url.searchParams.set("acao", "pausar");
+  const target = url.href;
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

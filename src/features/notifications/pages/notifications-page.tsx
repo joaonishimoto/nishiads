@@ -63,7 +63,7 @@ function ThisDevicePanel() {
   const test = useSendTestPush(workspace.id);
 
   const title = "Este dispositivo";
-  const description = "Receba um aviso no celular ou no computador a cada venda.";
+  const description = "Receba um aviso no celular ou no computador a cada venda e alerta.";
 
   if (support.kind === "needs-install") {
     return (
@@ -246,6 +246,12 @@ function PreferencesPanel() {
           label="Chargeback"
           checked={p.notify_chargeback}
           onChange={(v) => save({ notify_chargeback: v })}
+        />
+        <ToggleRow
+          label="Alertas das regras"
+          hint="Gasto sem venda, ROAS e CPA fora da meta, e pedidos para pausar."
+          checked={p.notify_alerts}
+          onChange={(v) => save({ notify_alerts: v })}
         />
         <ToggleRow
           label="Som"

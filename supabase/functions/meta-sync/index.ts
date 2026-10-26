@@ -9,8 +9,11 @@
  *   { "workspace_id": "...", "ad_account_id"?: "..." } → 202 { started }
  *   Botão "Sincronizar agora" (qualquer membro). Roda em segundo plano; o app
  *   acompanha por ad_accounts.sync_started_at / last_synced_at.
+ *
+ * Depois de sincronizar, avalia as regras de alerta de cada workspace que teve conta atualizada.
  */
 import { z } from "zod";
+import { evaluateWorkspaceAlerts } from "../_shared/alerts/run.ts";
 import { errorMessage, log } from "../_shared/log.ts";
 import { SYNC_ACCOUNT_COLUMNS, syncAdAccount, type SyncAccount } from "../_shared/meta/sync.ts";
 import { createAdminClient } from "../_shared/supabase-admin.ts";
@@ -46,6 +49,7 @@ async function syncAll(accounts: SyncAccount[], deadline: number) {
   const admin = createAdminClient();
   const appSecret = Deno.env.get("META_APP_SECRET")?.trim() || null;
   const results: Record<string, number> = {};
+  const synced = new Set<string>();
   for (const account of accounts) {
     if (Date.now() > deadline - 10_000) {
       results.deferred = (results.deferred ?? 0) + 1;
@@ -54,6 +58,21 @@ async function syncAll(accounts: SyncAccount[], deadline: number) {
     const outcome = await syncAdAccount(admin, account, { deadline, appSecret });
     const key = outcome.status === "skipped" ? `skipped_${outcome.reason}` : outcome.status;
     results[key] = (results[key] ?? 0) + 1;
+    if (outcome.status === "ok") synced.add(account.workspace_id);
+  }
+  // Os números mudaram: hora de conferir as regras (gasto sem venda, ROAS, CPA).
+  for (const workspaceId of synced) {
+    // Sem tempo: a próxima sincronização do workspace avalia (os alertas não se perdem).
+    if (Date.now() > deadline - 5_000) {
+      results.alerts_deferred = (results.alerts_deferred ?? 0) + 1;
+      continue;
+    }
+    try {
+      const alerts = await evaluateWorkspaceAlerts(admin, workspaceId, { deadline, appSecret });
+      results.alerts = (results.alerts ?? 0) + alerts.created;
+    } catch (cause) {
+      log("error", "alerts_evaluation_failed", { workspaceId, error: errorMessage(cause) });
+    }
   }
   return results;
 }
