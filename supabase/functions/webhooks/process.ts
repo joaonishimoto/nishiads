@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getAdapter } from "../_shared/checkout/registry.ts";
 import { errorMessage, log } from "../_shared/log.ts";
+import { deliverDueEvents } from "../_shared/meta/capi-delivery.ts";
 import { saleNotificationKind } from "../_shared/notify/messages.ts";
 import { notifySale } from "../_shared/notify/sale-notifications.ts";
 
@@ -90,6 +91,13 @@ export async function processWebhookEvent(admin: SupabaseClient, eventId: number
       } catch (cause) {
         log("error", "sale_notify_failed", { eventId, saleId: sale.sale_id, error: errorMessage(cause) });
       }
+    }
+
+    // Conversions API: o trigger já pôs o evento na fila; envia agora (o cron refaz se falhar).
+    try {
+      await deliverDueEvents(admin, { saleId: sale.sale_id, limit: 5 });
+    } catch (cause) {
+      log("error", "meta_capi_after_sale_failed", { eventId, saleId: sale.sale_id, error: errorMessage(cause) });
     }
   } catch (cause) {
     const message = errorMessage(cause);

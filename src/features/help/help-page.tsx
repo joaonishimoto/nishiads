@@ -18,6 +18,7 @@ import { PageHeader, Status } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { ProviderMark, type ProviderMarkKey } from "@/features/integrations/provider-mark";
 import { ATTRIBUTION_META } from "@/features/sales/meta";
+import { CAPI_GUIDE_STEPS } from "@/features/meta/capi-panel";
 import { META_URL_PARAMETERS } from "@/lib/utm";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,13 @@ const CAPTURE_SNIPPET = `<script>
   (function () {
     var keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
     var params = new URLSearchParams(location.search);
+    // Clique do anúncio da Meta, para a Conversions API (fbc = fb.1.<ms>.<fbclid>).
+    var fbclid = params.get("fbclid");
+    if (fbclid) {
+      try {
+        localStorage.setItem("nishiads_fbc", "fb.1." + Date.now() + "." + fbclid);
+      } catch (e) {}
+    }
     if (!keys.some(function (k) { return params.get(k); })) return;
     var utms = {};
     keys.forEach(function (k) {
@@ -55,6 +63,32 @@ await fetch("/api/checkout", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ priceId, utms: getSavedUtms() }),
 });`;
+
+const CLICK_SNIPPET = `// No front, junto com as UTMs: dados do clique para a Conversions API.
+function getMetaClick() {
+  function cookie(name) {
+    var m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : undefined;
+  }
+  var saved;
+  try {
+    saved = localStorage.getItem("nishiads_fbc") || undefined;
+  } catch (e) {}
+  return {
+    fbc: cookie("_fbc") || saved, // _fbc e _fbp são criados pelo pixel da Meta
+    fbp: cookie("_fbp"),
+    client_user_agent: navigator.userAgent.slice(0, 500),
+  };
+}
+
+// No servidor, ao criar a Checkout Session, some ao metadata das UTMs:
+const meta = body.meta || {};
+const click = {};
+for (const key of ["fbc", "fbp", "client_user_agent"]) {
+  if (typeof meta[key] === "string" && meta[key]) click[key] = meta[key].slice(0, 500);
+}
+// metadata: { ...utms, ...click, product_name: "..." }
+// subscription_data: { metadata: { ...utms, ...click } }`;
 
 const SERVER_SNIPPET = `// No servidor (Node, Deno ou Edge Function), onde a Checkout Session é criada:
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
@@ -112,6 +146,7 @@ const GROUPS: { title: string; sections: { id: string; title: string }[] }[] = [
       { id: "kiwify", title: "Kiwify" },
       { id: "stripe", title: "Stripe" },
       { id: "stripe-utms", title: "UTMs num checkout próprio" },
+      { id: "conversions-api", title: "Conversions API da Meta" },
     ],
   },
   {
@@ -676,6 +711,66 @@ export function HelpPage() {
                 A Stripe aceita até 500 caracteres por valor; os snippets já cortam nesse limite.
               </li>
               <li>Não coloque e-mail, nome ou outros dados pessoais no metadata.</li>
+            </Bullets>
+          </Section>
+
+          <Section
+            id="conversions-api"
+            title="Conversions API da Meta"
+            provider="meta"
+            lead="Manda as vendas do checkout para o pixel da Meta, que passa a otimizar as campanhas com as vendas reais. Configure em Integrações › Conversions API."
+          >
+            <Steps>
+              {CAPI_GUIDE_STEPS.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </Steps>
+            <dl className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+              {[
+                ["Venda aprovada", "Purchase com valor, moeda, produto e o id do pedido."],
+                [
+                  "Renovação",
+                  "Purchase com origem “gerada pelo sistema”: a Meta conta a receita, mas não credita a renovação ao último anúncio visto.",
+                ],
+                ["Teste iniciado", "StartTrial, sem valor (pode desligar)."],
+                [
+                  "Reembolso",
+                  "Se a venda ainda não foi enviada, não vai mais. Se já foi, pode ir como o evento personalizado Refund (desligado por padrão).",
+                ],
+                [
+                  "Duplicidade",
+                  "O event_id é o id do pedido (pi_... na Stripe, o número do pedido na Kiwify). Se o pixel do site mandar o mesmo Purchase com esse eventID, a Meta conta uma vez só.",
+                ],
+                [
+                  "Falhas",
+                  "Erros temporários tentam de novo por até 12 horas; token ou pixel errados avisam no card e voltam a enviar assim que você salvar o token novo. A Meta só aceita eventos de até 7 dias.",
+                ],
+              ].map(([term, desc]) => (
+                <div
+                  key={term}
+                  className="grid gap-1 px-3 py-2.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4"
+                >
+                  <dt className="font-medium text-foreground">{term}</dt>
+                  <dd>{desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <p>
+              <strong>Dados do comprador:</strong> vai o e-mail só com hash SHA-256 (o nishiADS
+              nunca guarda o e-mail em claro) e, quando o checkout repassa, os cookies <C>_fbc</C> e{" "}
+              <C>_fbp</C> e o user agent. Com eles a Meta casa muito mais vendas com os cliques.
+            </p>
+            <CodeBlock
+              code={CLICK_SNIPPET}
+              label="Dados de clique para a Conversions API (JavaScript)"
+            />
+            <Bullets>
+              <li>
+                Kiwify: o webhook normalmente não traz os cookies da Meta, então a venda vai com o
+                e-mail com hash. Se trouxer <C>fbclid</C> nos parâmetros de rastreamento, ele também
+                é usado.
+              </li>
+              <li>Cada evento enviado, com a resposta da Meta, aparece em Logs de integração.</li>
             </Bullets>
           </Section>
 

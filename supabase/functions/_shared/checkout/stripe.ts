@@ -12,6 +12,7 @@
  */
 import { hashEmail, hmacHex, timingSafeEqual } from "../crypto.ts";
 import { cleanText } from "../values.ts";
+import { clickIdsFrom } from "./click-ids.ts";
 import type { CheckoutAdapter, NormalizeResult, NormalizedSale, SaleStatus } from "./types.ts";
 
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
@@ -55,6 +56,10 @@ function str(value: unknown): string | null {
 /** Campo que pode vir como id ("pi_...") ou como objeto expandido ({ id }). */
 function idOf(value: unknown): string | null {
   return str(value) ?? str(obj(value)?.id);
+}
+
+function unixToMs(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value * 1000 : Date.now();
 }
 
 function unixToIso(value: unknown): string | null {
@@ -152,6 +157,7 @@ async function fromCheckoutSession(type: string, session: Obj, apiKey: string | 
       product_name: product.name,
       customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
       ...utmsFrom(session.metadata),
+      ...clickIdsFrom(session.metadata, unixToMs(session.created)),
       paid_at: status === "approved" ? (unixToIso(session.created) ?? new Date().toISOString()) : null,
     }),
   };
@@ -191,20 +197,28 @@ async function fromSubscriptionCheckout(type: string, session: Obj, apiKey: stri
       product_name: product.name,
       customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
       ...utmsFrom(session.metadata),
+      ...clickIdsFrom(session.metadata, unixToMs(session.created)),
     }),
   };
 }
 
-/** UTMs da assinatura: metadata da assinatura ou, sem ela, da Checkout Session que a criou. */
-async function subscriptionUtms(metadata: unknown, subscriptionId: string | null, apiKey: string | null) {
-  let utms = utmsFrom(metadata);
+/**
+ * Rastreamento da assinatura (UTMs e dados de clique): metadata da assinatura ou, sem
+ * UTMs nela, da Checkout Session que a criou.
+ */
+async function subscriptionTracking(metadata: unknown, subscriptionId: string | null, apiKey: string | null) {
+  let source = metadata;
+  let utms = utmsFrom(source);
+  let observedAt = Date.now();
   if (!hasUtm(utms) && apiKey && subscriptionId) {
     const session = firstOfList(
       await stripeGet(apiKey, "/checkout/sessions", { subscription: subscriptionId, limit: "1" }),
     );
-    utms = utmsFrom(session?.metadata);
+    source = session?.metadata;
+    utms = utmsFrom(source);
+    observedAt = unixToMs(session?.created);
   }
-  return utms;
+  return { ...utms, ...clickIdsFrom(source, observedAt) };
 }
 
 function invoiceProduct(invoice: Obj) {
@@ -239,7 +253,7 @@ async function fromInvoice(invoice: Obj, apiKey: string | null): Promise<Normali
         external_product_id: product.id,
         product_name: product.name,
         customer_email_hash: await emailHash(invoice, str(invoice.customer_email)),
-        ...(await subscriptionUtms(subscriptionDetails?.metadata, subscriptionId, apiKey)),
+        ...(await subscriptionTracking(subscriptionDetails?.metadata, subscriptionId, apiKey)),
       }),
     };
   }
@@ -255,7 +269,7 @@ async function fromInvoice(invoice: Obj, apiKey: string | null): Promise<Normali
     paymentIntent = idOf(obj(payment?.payment)?.payment_intent);
   }
 
-  const utms = await subscriptionUtms(subscriptionDetails?.metadata, subscriptionId, apiKey);
+  const tracking = await subscriptionTracking(subscriptionDetails?.metadata, subscriptionId, apiKey);
   const product = invoiceProduct(invoice);
 
   return {
@@ -269,7 +283,7 @@ async function fromInvoice(invoice: Obj, apiKey: string | null): Promise<Normali
       external_product_id: product.id,
       product_name: product.name,
       customer_email_hash: await emailHash(invoice, str(invoice.customer_email)),
-      ...utms,
+      ...tracking,
       paid_at: unixToIso(obj(invoice.status_transitions)?.paid_at) ?? unixToIso(invoice.created),
     }),
   };

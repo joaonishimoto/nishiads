@@ -50,6 +50,7 @@ import { FormField } from "@/components/app/form-field";
 import { LoadError, PageHeader, Status } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { MetaAdsPanel } from "@/features/meta/meta-ads-panel";
+import { CapiPanel } from "@/features/meta/capi-panel";
 import { useAdAccounts, useMetaConnections } from "@/features/meta/api";
 import {
   useCreateIntegration,
@@ -118,6 +119,7 @@ export function IntegrationsPage() {
       >
         <MetaAdsPanel />
         <UrlParametersCard />
+        <CapiPanel />
       </Section>
 
       <Section

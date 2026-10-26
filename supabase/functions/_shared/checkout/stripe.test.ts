@@ -244,3 +244,43 @@ describe("Stripe: LGPD", () => {
     expect(result.kind === "sale" && result.sale.customer_email_hash).toBe(await sha256Hex("cliente.stripe@exemplo.com"));
   });
 });
+
+describe("Stripe: dados de clique da Meta", () => {
+  it("lê fbc, fbp e user agent do metadata da Checkout Session", async () => {
+    mockStripeApi({});
+    const result = await stripeAdapter.normalize(
+      event("checkout.session.completed", {
+        id: "cs_9",
+        mode: "payment",
+        payment_status: "paid",
+        payment_intent: "pi_9",
+        amount_total: 100,
+        created: 1792980000,
+        metadata: {
+          product_name: "X",
+          product_id: "p",
+          fbclid: "IwAR-cliqueDoAnuncio",
+          fbp: "fb.1.1792970000000.1234567",
+          client_user_agent: "Mozilla/5.0 (iPhone)",
+        },
+      }),
+      { secret: SECRET },
+    );
+    expect(result).toMatchObject({
+      kind: "sale",
+      sale: {
+        fbc: "fb.1.1792980000000.IwAR-cliqueDoAnuncio",
+        fbp: "fb.1.1792970000000.1234567",
+        client_user_agent: "Mozilla/5.0 (iPhone)",
+      },
+    });
+  });
+
+  it("renovação pega os dados de clique da assinatura", async () => {
+    mockStripeApi({ "/v1/invoice_payments": { data: [] } });
+    const payload = JSON.parse(invoicePaid);
+    payload.data.object.parent.subscription_details.metadata = { utm_source: "FB", fbc: "fb.1.1792970000000.abc" };
+    const result = await stripeAdapter.normalize(payload, { secret: SECRET });
+    expect(result.kind === "sale" && result.sale.fbc).toBe("fb.1.1792970000000.abc");
+  });
+});

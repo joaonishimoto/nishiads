@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { hashEmail, hmacHex, timingSafeEqual } from "../crypto.ts";
 import { cleanText, parseCents, parseProviderDate } from "../values.ts";
+import { clickIdsFrom } from "./click-ids.ts";
 import type { CheckoutAdapter, NormalizeResult, SaleStatus } from "./types.ts";
 
 /**
@@ -38,6 +39,9 @@ const trackingShape = {
   utm_term: text,
   src: text,
   sck: text,
+  fbclid: text,
+  fbc: text,
+  fbp: text,
 };
 
 const payloadSchema = z
@@ -171,6 +175,7 @@ export const kiwifyAdapter: CheckoutAdapter = {
         utm_campaign: cleanText(tracking.utm_campaign),
         utm_content: cleanText(tracking.utm_content),
         utm_term: cleanText(tracking.utm_term),
+        ...clickIdsFrom(tracking, approvedAt ? Date.parse(approvedAt) : Date.now()),
         paid_at: status === "pending" || status === "canceled" ? null : approvedAt,
         refunded_at: refundedAt,
       },

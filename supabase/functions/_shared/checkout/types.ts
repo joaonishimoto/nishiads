@@ -24,6 +24,10 @@ export interface NormalizedSale {
    * a primeira venda aprovada com o mesmo subscription_ref converte o teste.
    */
   subscription_ref?: string | null;
+  /** Dados de clique da Meta (cookie _fbc/_fbp e user agent), para a Conversions API. */
+  fbc?: string | null;
+  fbp?: string | null;
+  client_user_agent?: string | null;
 }
 
 export interface VerifyInput {
