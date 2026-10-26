@@ -94,7 +94,7 @@ export function CampaignsPage() {
     />
   );
 
-  if (accounts.isPending || totals.isPending) return <PageSkeleton rows={5} />;
+  if (accounts.isPending || totals.isPending) return <PageSkeleton variant="table" />;
   if (accounts.isError || totals.isError) {
     return (
       <div className="space-y-6">

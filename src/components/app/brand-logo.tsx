@@ -15,12 +15,15 @@ function SymbolShapes() {
   );
 }
 
-export function BrandSymbol({ className }: { className?: string }) {
+/** Símbolo solto (sem quadrado), na cor do texto atual. Mede 1em. */
+export function BrandSymbol({ className, title }: { className?: string; title?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
       className={cn("block h-[1em] w-[1em] shrink-0", className)}
-      aria-hidden
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : true}
+      aria-label={title}
       fill="currentColor"
     >
       <SymbolShapes />
@@ -40,12 +43,17 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-/** Logo com nome. O tamanho segue o font-size do className. */
+/**
+ * Logo com nome. O tamanho segue o font-size do className.
+ * `symbol={false}` mostra só o nome (sidebar aberta; o símbolo aparece só recolhida), como no Nishistack.
+ */
 export function BrandLogo({
   tone = "positive",
+  symbol = true,
   className,
 }: {
   tone?: "positive" | "negative";
+  symbol?: boolean;
   className?: string;
 }) {
   return (
@@ -58,7 +66,7 @@ export function BrandLogo({
         className,
       )}
     >
-      <BrandSymbol />
+      {symbol && <BrandSymbol />}
       <span aria-hidden className="whitespace-nowrap text-[1.08em] leading-none tracking-[-0.01em]">
         nishiADS
       </span>

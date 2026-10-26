@@ -31,7 +31,7 @@ export function SaleDetailPage() {
     </Link>
   );
 
-  if (sale.isPending) return <PageSkeleton rows={5} />;
+  if (sale.isPending) return <PageSkeleton variant="detail" />;
   if (sale.isError) {
     return (
       <div className="space-y-4">

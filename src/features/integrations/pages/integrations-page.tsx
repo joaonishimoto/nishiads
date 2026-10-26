@@ -94,7 +94,7 @@ export function IntegrationsPage() {
       <MetaAdsPanel />
 
       {integrations.isPending ? (
-        <PageSkeleton rows={2} />
+        <PageSkeleton variant="settings" />
       ) : integrations.isError ? (
         <LoadError onRetry={() => integrations.refetch()} retrying={integrations.isFetching}>
           Não foi possível carregar as integrações.

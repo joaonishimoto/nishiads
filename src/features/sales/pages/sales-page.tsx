@@ -231,7 +231,7 @@ function SalesList({ filters }: { filters: SalesFilters }) {
   const { workspace } = useWorkspace();
   const list = useSalesList(workspace.id, filters);
 
-  if (list.isPending) return <PageSkeleton rows={6} />;
+  if (list.isPending) return <PageSkeleton variant="table" />;
   if (list.isError) {
     return (
       <LoadError onRetry={() => list.refetch()} retrying={list.isFetching}>
