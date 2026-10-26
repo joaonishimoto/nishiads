@@ -10,7 +10,7 @@ import { ATTRIBUTION_META } from "@/features/sales/meta";
 import { META_URL_PARAMETERS } from "@/lib/utm";
 
 const CAPTURE_SNIPPET = `<script>
-  // Nishiads: guarda as UTMs do anúncio por 30 dias.
+  // nishiADS: guarda as UTMs do anúncio por 30 dias.
   (function () {
     var keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
     var params = new URLSearchParams(location.search);
@@ -61,7 +61,7 @@ const utms = pickUtms(body.utms);
 const session = await stripe.checkout.sessions.create({
   mode: "subscription", // ou "payment" para venda avulsa
   line_items: [{ price: priceId, quantity: 1 }],
-  // Lido pelo Nishiads em checkout.session.completed (venda avulsa)
+  // Lido pelo nishiADS em checkout.session.completed (venda avulsa)
   // e quando a assinatura nasce desta sessão.
   metadata: { ...utms, product_name: "Nome do produto" },
   // Só no modo assinatura: as renovações (invoice.paid) herdam a origem.
@@ -71,7 +71,7 @@ const session = await stripe.checkout.sessions.create({
 });`;
 
 const KIWIFY_LINK_SNIPPET = `<script>
-  // Nishiads: repassa as UTMs da página para os links de checkout da Kiwify.
+  // nishiADS: repassa as UTMs da página para os links de checkout da Kiwify.
   document.addEventListener("DOMContentLoaded", function () {
     var params = new URLSearchParams(location.search);
     document.querySelectorAll('a[href*="kiwify.com.br"]').forEach(function (a) {
@@ -85,7 +85,7 @@ const KIWIFY_LINK_SNIPPET = `<script>
 </script>`;
 
 const SECTIONS = [
-  { id: "como-funciona", title: "Como o Nishiads atribui uma venda" },
+  { id: "como-funciona", title: "Como o nishiADS atribui uma venda" },
   { id: "meta", title: "1. Parâmetros de URL nos anúncios" },
   { id: "kiwify", title: "2a. Checkout Kiwify" },
   { id: "stripe", title: "2b. Checkout Stripe" },
@@ -186,7 +186,7 @@ export function HelpPage() {
         </ul>
       </nav>
 
-      <Section id="como-funciona" title="Como o Nishiads atribui uma venda">
+      <Section id="como-funciona" title="Como o nishiADS atribui uma venda">
         <p>A atribuição depende de uma corrente de 4 elos. Se um elo faltar, a venda entra mesmo assim, mas sem origem.</p>
         <Steps>
           <li>
@@ -200,12 +200,12 @@ export function HelpPage() {
             <strong>Checkout:</strong> as UTMs precisam chegar ao checkout (Kiwify pela URL, Stripe pelo metadata).
           </li>
           <li>
-            <strong>Webhook:</strong> o checkout avisa o Nishiads da venda, já com as UTMs, e o Nishiads liga a venda
+            <strong>Webhook:</strong> o checkout avisa o nishiADS da venda, já com as UTMs, e o nishiADS liga a venda
             ao anúncio.
           </li>
         </Steps>
         <p>
-          As UTMs usam o formato <C>nome|id</C>. O Nishiads usa o <strong>id</strong> que vem depois do <C>|</C>,
+          As UTMs usam o formato <C>nome|id</C>. O nishiADS usa o <strong>id</strong> que vem depois do <C>|</C>,
           então a atribuição continua funcionando se você renomear campanhas ou anúncios. Sem id, ele tenta pelo nome,
           desde que o nome seja único.
         </p>
@@ -227,7 +227,7 @@ export function HelpPage() {
         <CopyField value={META_URL_PARAMETERS} label="parâmetros de URL" />
         <p>
           A Meta troca cada <C>{"{{...}}"}</C> pelos valores reais na hora do clique. Não troque os nomes das chaves (
-          <C>utm_campaign</C> etc.), porque é por elas que o Nishiads lê a origem.
+          <C>utm_campaign</C> etc.), porque é por elas que o nishiADS lê a origem.
         </p>
       </Section>
 
@@ -275,7 +275,7 @@ export function HelpPage() {
         </Steps>
         <p>
           <strong>Por que a chave restrita:</strong> nas assinaturas, a Stripe não manda no webhook o pagamento nem as
-          UTMs da compra original. O Nishiads usa a chave, só de leitura, para buscar esses dados. Ela não consegue
+          UTMs da compra original. O nishiADS usa a chave, só de leitura, para buscar esses dados. Ela não consegue
           cobrar, reembolsar nem alterar nada.
         </p>
         <p>
@@ -301,13 +301,13 @@ export function HelpPage() {
         <CodeBlock code={READ_SNIPPET} label="leitura das UTMs no front" />
         <p>
           <strong>c) Colocar as UTMs no metadata da Checkout Session.</strong> Em <C>metadata</C> e, nas assinaturas,
-          também em <C>subscription_data.metadata</C>. É isso que o Nishiads lê.
+          também em <C>subscription_data.metadata</C>. É isso que o nishiADS lê.
         </p>
         <CodeBlock code={SERVER_SNIPPET} label="criação da Checkout Session com UTMs" />
         <Bullets>
           <li>
             Opcional: <C>product_name</C> e <C>product_id</C> no metadata dão nome ao produto na venda. Sem eles, o
-            Nishiads usa o nome do item da Stripe.
+            nishiADS usa o nome do item da Stripe.
           </li>
           <li>A Stripe aceita até 500 caracteres por valor de metadata; os snippets já cortam nesse limite.</li>
           <li>Não coloque e-mail, nome ou outros dados pessoais no metadata.</li>

@@ -1,4 +1,4 @@
-// Service worker do Nishiads: só Web Push (sem cache offline, para nunca servir versão velha).
+// Service worker do nishiADS: só Web Push (sem cache offline, para nunca servir versão velha).
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -8,9 +8,9 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "Nishiads", body: event.data ? event.data.text() : "" };
+    data = { title: "nishiADS", body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Nishiads";
+  const title = data.title || "nishiADS";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

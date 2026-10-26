@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     await admin.from("webhook_events").insert({
       ...baseEvent,
       status: "ignored",
-      error: "Integração desativada no Nishiads.",
+      error: "Integração desativada no nishiADS.",
       event_type: summary.eventType,
       external_order_id: summary.externalOrderId,
       payload: redacted,

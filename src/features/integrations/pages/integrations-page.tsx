@@ -142,7 +142,7 @@ export function IntegrationsPage() {
 
 const AVAILABLE_PROVIDERS = Object.values(PROVIDERS).filter((p) => p.available && p.steps.length > 0);
 
-/** Passo a passo de um provedor. Com `withCreateStep`, começa pela criação da integração no Nishiads. */
+/** Passo a passo de um provedor. Com `withCreateStep`, começa pela criação da integração no nishiADS. */
 function ProviderGuide({
   provider,
   open,
@@ -154,7 +154,7 @@ function ProviderGuide({
 }) {
   const steps = withCreateStep
     ? [
-        `Aqui no Nishiads, clique em Conectar checkout, escolha ${provider.label} e dê um nome que identifique a conta (ex.: ${provider.label} FreelaPro). Copie a URL do webhook que aparece no card.`,
+        `Aqui no nishiADS, clique em Conectar checkout, escolha ${provider.label} e dê um nome que identifique a conta (ex.: ${provider.label} FreelaPro). Copie a URL do webhook que aparece no card.`,
         ...provider.steps,
       ]
     : provider.steps;
@@ -304,7 +304,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir “{integration.name}”?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Os próximos webhooks desta URL serão recusados. As vendas já recebidas continuam no Nishiads.
+                      Os próximos webhooks desta URL serão recusados. As vendas já recebidas continuam no nishiADS.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

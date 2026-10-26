@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
         recipients,
         {
           title: "🔔 Notificações ativas",
-          body: "É assim que suas vendas vão aparecer no Nishiads.",
+          body: "É assim que suas vendas vão aparecer no nishiADS.",
           url: `/w/${workspaceId}/vendas`,
           tag: "nishiads-test",
         },
