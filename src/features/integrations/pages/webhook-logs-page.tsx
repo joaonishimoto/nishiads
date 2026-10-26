@@ -66,7 +66,7 @@ export function WebhookLogsPage() {
       />
 
       {logs.isPending ? (
-        <PageSkeleton rows={6} />
+        <PageSkeleton variant="table" />
       ) : logs.isError ? (
         <LoadError onRetry={() => logs.refetch()} retrying={logs.isFetching}>
           Não foi possível carregar os logs.

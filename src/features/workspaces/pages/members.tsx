@@ -64,7 +64,7 @@ export function MembersPage() {
       {canManage && <InviteForm />}
 
       {members.isPending ? (
-        <PageSkeleton rows={3} />
+        <PageSkeleton variant="settings" />
       ) : members.isError ? (
         <LoadError onRetry={() => members.refetch()} retrying={members.isFetching}>
           Não foi possível carregar os membros.
@@ -178,7 +178,7 @@ function MemberRow({ member }: { member: Member }) {
 
   return (
     <li className="flex items-center gap-3 px-4 py-3">
-      <Avatar name={name} />
+      <Avatar name={name} showName={false} size="md" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">
           {name}
