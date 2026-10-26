@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { AlertTriangle, LogIn, Megaphone, RefreshCw, Unplug } from "lucide-react";
+import { AlertTriangle, Check, LogIn, Megaphone, RefreshCw, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +16,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { LoadError, Panel, Status, type Tone } from "@/components/app/ui";
+import { LoadError, Status, type Tone } from "@/components/app/ui";
+import { ProviderMark } from "@/features/integrations/provider-mark";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import {
   isSyncing,
@@ -68,18 +69,19 @@ export function MetaAdsPanel() {
   const syncNow = useSyncNow(workspace.id);
   useOAuthReturnToast();
 
-  const startConnect = () => connect.mutate(undefined, { onError: (error) => toast.error(metaErrorMessage(error)) });
+  const startConnect = () =>
+    connect.mutate(undefined, { onError: (error) => toast.error(metaErrorMessage(error)) });
   const tracked = accounts.data?.filter((a) => a.is_tracked) ?? [];
   const anySyncing = tracked.some(isSyncing);
 
   if (connections.isPending || accounts.isPending) {
     return (
-      <Panel title="Meta Ads">
+      <MetaCard subtitle="Carregando…">
         <div className="space-y-3 p-4">
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
         </div>
-      </Panel>
+      </MetaCard>
     );
   }
   if (connections.isError || accounts.isError) {
@@ -98,28 +100,41 @@ export function MetaAdsPanel() {
 
   if (connections.data.length === 0 && accounts.data.length === 0) {
     return (
-      <Panel title="Meta Ads" description="Gasto, impressões e criativos de cada anúncio, para calcular ROAS e CPA.">
-        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {canManage
-              ? "Entre com o Facebook que administra suas contas de anúncio. O Nishiads só lê os dados (ads_read)."
-              : "Peça a um owner ou admin para conectar a Meta Ads."}
-          </p>
-          {canManage && (
-            <Button className="shrink-0" onClick={startConnect} loading={connect.isPending} loadingText="Abrindo…">
-              <LogIn />
-              Conectar Meta Ads
-            </Button>
+      <MetaCard subtitle="Não conectada">
+        <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <ul className="grid gap-1.5 text-sm text-muted-foreground">
+            {[
+              "Gasto, impressões, cliques e CTR de cada anúncio, por dia",
+              "Thumbnail do criativo ao lado das vendas que ele trouxe",
+              "ROAS, CPA e lucro por campanha, conjunto e criativo",
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-success-strong" aria-hidden />
+                {item}
+              </li>
+            ))}
+          </ul>
+          {canManage ? (
+            <div className="grid gap-1.5 sm:justify-items-end">
+              <Button onClick={startConnect} loading={connect.isPending} loadingText="Abrindo…">
+                <LogIn />
+                Conectar Meta Ads
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Só leitura: o nishiADS não altera anúncios.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Peça a um owner ou admin para conectar.</p>
           )}
         </div>
-      </Panel>
+      </MetaCard>
     );
   }
 
   return (
-    <Panel
-      title="Meta Ads"
-      description="Sincroniza a cada 15 minutos. Os últimos 3 dias são refeitos, porque a Meta ajusta os números depois."
+    <MetaCard
+      subtitle="Sincroniza a cada 15 min e refaz os últimos 3 dias, que a Meta ainda ajusta."
       action={
         tracked.length > 0 && (
           <Button
@@ -130,7 +145,9 @@ export function MetaAdsPanel() {
             onClick={() =>
               syncNow.mutate(undefined, {
                 onSuccess: ({ started }) =>
-                  started === 0 ? toast.info("As contas acabaram de sincronizar. Tente de novo em 1 minuto.") : undefined,
+                  started === 0
+                    ? toast.info("As contas acabaram de sincronizar. Tente de novo em 1 minuto.")
+                    : undefined,
                 onError: (error) => toast.error(metaErrorMessage(error)),
               })
             }
@@ -143,7 +160,12 @@ export function MetaAdsPanel() {
     >
       <div className="divide-y divide-border">
         {connections.data.map((connection) => (
-          <ConnectionRow key={connection.id} connection={connection} onReconnect={startConnect} reconnecting={connect.isPending} />
+          <ConnectionRow
+            key={connection.id}
+            connection={connection}
+            onReconnect={startConnect}
+            reconnecting={connect.isPending}
+          />
         ))}
         {connections.data.length === 0 && (
           <div className="flex flex-col gap-3 bg-warning/10 p-4 text-sm text-warning-strong sm:flex-row sm:items-center sm:justify-between">
@@ -152,7 +174,12 @@ export function MetaAdsPanel() {
               <p>A conexão com a Meta foi removida. Conecte de novo para voltar a sincronizar.</p>
             </div>
             {canManage && (
-              <Button size="sm" className="shrink-0 self-start sm:self-auto" onClick={startConnect} loading={connect.isPending}>
+              <Button
+                size="sm"
+                className="shrink-0 self-start sm:self-auto"
+                onClick={startConnect}
+                loading={connect.isPending}
+              >
                 <LogIn />
                 Conectar
               </Button>
@@ -162,8 +189,8 @@ export function MetaAdsPanel() {
 
         {accounts.data.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">
-            Nenhuma conta de anúncio encontrada para este login. Confira se o seu usuário tem acesso às contas no
-            Gerenciador de Negócios e conecte de novo.
+            Nenhuma conta de anúncio encontrada para este login. Confira se o seu usuário tem acesso
+            às contas no Gerenciador de Negócios e conecte de novo.
           </p>
         ) : (
           <div>
@@ -181,7 +208,34 @@ export function MetaAdsPanel() {
           </div>
         )}
       </div>
-    </Panel>
+    </MetaCard>
+  );
+}
+
+function MetaCard({
+  subtitle,
+  action,
+  children,
+}: {
+  subtitle: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-label="Meta Ads"
+      className="overflow-hidden rounded-lg border border-border bg-surface"
+    >
+      <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+        <ProviderMark provider="meta" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold text-foreground">Meta Ads</h3>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        {action}
+      </header>
+      {children}
+    </section>
   );
 }
 
@@ -196,9 +250,12 @@ function ConnectionRow({
 }) {
   const { workspace, canManage } = useWorkspace();
   const disconnect = useDisconnectMeta(workspace.id);
-  const expiresAt = connection.token_expires_at ? new Date(connection.token_expires_at).getTime() : null;
+  const expiresAt = connection.token_expires_at
+    ? new Date(connection.token_expires_at).getTime()
+    : null;
   const expiringSoon = expiresAt !== null && expiresAt - Date.now() < EXPIRY_WARNING_MS;
-  const needsReconnect = connection.status === "needs_reconnect" || (expiresAt !== null && expiresAt < Date.now());
+  const needsReconnect =
+    connection.status === "needs_reconnect" || (expiresAt !== null && expiresAt < Date.now());
   const who = connection.meta_user_name ?? "Facebook";
 
   return (
@@ -220,7 +277,12 @@ function ConnectionRow({
             </p>
           </div>
           {canManage && (
-            <Button size="sm" className="shrink-0 self-start sm:self-auto" onClick={onReconnect} loading={reconnecting}>
+            <Button
+              size="sm"
+              className="shrink-0 self-start sm:self-auto"
+              onClick={onReconnect}
+              loading={reconnecting}
+            >
               <LogIn />
               Reconectar
             </Button>
@@ -255,8 +317,8 @@ function ConnectionRow({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Desconectar a Meta?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    O token de acesso é apagado e a sincronização para. Campanhas, criativos e gastos já sincronizados
-                    continuam no Nishiads.
+                    O token de acesso é apagado e a sincronização para. Campanhas, criativos e
+                    gastos já sincronizados continuam no Nishiads.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -289,8 +351,10 @@ function accountState(account: AdAccount): { tone: Tone; label: string } {
   if (!account.is_tracked) return { tone: "neutral", label: "Não acompanhada" };
   if (account.status === "needs_reconnect") return { tone: "danger", label: "Reconectar" };
   if (account.status === "disabled") return { tone: "neutral", label: "Desativada na Meta" };
-  if (isSyncing(account)) return { tone: "info", label: account.backfilled_at ? "Sincronizando" : "Importando 30 dias" };
-  if (account.status === "error" || account.last_sync_error) return { tone: "warning", label: "Com erro" };
+  if (isSyncing(account))
+    return { tone: "info", label: account.backfilled_at ? "Sincronizando" : "Importando 30 dias" };
+  if (account.status === "error" || account.last_sync_error)
+    return { tone: "warning", label: "Com erro" };
   if (!account.last_synced_at) return { tone: "info", label: "Aguardando" };
   return { tone: "success", label: "Sincronizada" };
 }
