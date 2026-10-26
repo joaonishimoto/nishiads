@@ -10,6 +10,9 @@ export type SecretField = {
   patternMessage: string;
 };
 
+/** Passo do guia. `copyItems` vira uma lista de valores com botão de copiar (ex.: nomes de eventos). */
+export type GuideStep = string | { text: string; copyItems: string[] };
+
 type ProviderInfo = {
   label: string;
   available: boolean;
@@ -17,7 +20,7 @@ type ProviderInfo = {
   secretHint: string;
   /** Provedores com mais de um segredo: os campos viram um JSON guardado no Vault. */
   secretFields?: SecretField[];
-  steps: string[];
+  steps: GuideStep[];
   /** Observação abaixo dos passos (ex.: como enviar as UTMs). */
   note?: string;
 };
@@ -31,7 +34,7 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
     secretHint: "Aparece na tela do webhook na Kiwify, ao lado da URL.",
     steps: [
       "Na Kiwify, abra Apps › Webhooks e clique em Criar webhook.",
-      "Dê um nome (ex.: Nishiads) e cole a URL abaixo.",
+      "Dê um nome (ex.: Nishiads) e cole a URL do webhook que aparece no card da integração aqui no Nishiads.",
       "Escolha o produto (ou todos) e marque os eventos: Compra aprovada, Compra reembolsada, Chargeback, Pix gerado, Boleto gerado e Compra recusada.",
       "Copie o token que a Kiwify mostra e salve no campo Token aqui no Nishiads.",
       "Na Kiwify, use Testar webhook. O evento aparece em Logs de integração.",
@@ -68,9 +71,20 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
       },
     ],
     steps: [
-      "Na Stripe, abra Desenvolvedores › Webhooks › Adicionar destino, escolha Eventos na sua conta e cole a URL abaixo.",
-      "Selecione os eventos: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, invoice.paid, charge.refunded e charge.dispute.created.",
-      "Depois de criar, copie o Signing secret (whsec_...).",
+      "Na Stripe, abra Desenvolvedores › Webhooks › Adicionar destino e escolha Eventos na sua conta.",
+      {
+        text: "Selecione os 6 eventos abaixo. Copie cada nome e cole na busca de eventos da Stripe:",
+        copyItems: [
+          "checkout.session.completed",
+          "checkout.session.async_payment_succeeded",
+          "checkout.session.async_payment_failed",
+          "invoice.paid",
+          "charge.refunded",
+          "charge.dispute.created",
+        ],
+      },
+      "Em URL do endpoint, cole a URL do webhook que aparece no card da integração aqui no Nishiads e crie o destino.",
+      "Abra o destino criado e copie o Signing secret (whsec_...).",
       "Em Desenvolvedores › Chaves de API, crie uma chave restrita com permissão Leitura em Checkout Sessions, Invoices e Charges. Copie a chave (rk_live_...).",
       "Clique em Salvar chaves aqui e cole as duas.",
       "Para conferir, reenvie um evento pela Stripe (no destino do webhook, abra um evento e clique em Reenviar). Ele aparece em Logs de integração.",
