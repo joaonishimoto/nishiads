@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
-import { AlertTriangle, KeyRound, ListChecks, Plug, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Copy, KeyRound, ListChecks, Plug, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -40,7 +40,7 @@ import {
   webhookUrl,
   type Integration,
 } from "@/features/integrations/api";
-import { PROVIDERS, type SecretField } from "@/features/integrations/providers";
+import { PROVIDERS, type GuideStep, type SecretField } from "@/features/integrations/providers";
 import { friendlyError } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
 import { validate, type FieldErrors } from "@/lib/form";
@@ -159,13 +159,56 @@ function ProviderGuide({
       </summary>
       <ol className="list-decimal space-y-1.5 border-t border-border py-3 pl-8 pr-3 text-sm text-muted-foreground">
         {steps.map((step) => (
-          <li key={step}>{step}</li>
+          <GuideStepItem key={typeof step === "string" ? step : step.text} step={step} />
         ))}
       </ol>
       {provider.note && (
         <p className="border-t border-border px-3 py-3 text-sm text-muted-foreground">{provider.note}</p>
       )}
     </details>
+  );
+}
+
+function GuideStepItem({ step }: { step: GuideStep }) {
+  if (typeof step === "string") return <li>{step}</li>;
+  return (
+    <li>
+      {step.text}
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {step.copyItems.map((item) => (
+          <li key={item}>
+            <CopyChip value={item} />
+          </li>
+        ))}
+      </ul>
+    </li>
+  );
+}
+
+function CopyChip({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      toast.success(`${value} copiado.`);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar. Selecione o texto e copie manualmente.");
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={`Copiar ${value}`}
+      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-muted px-2 py-1 font-mono text-xs text-foreground transition-colors hover:bg-accent"
+    >
+      {value}
+      {copied ? <Check className="h-3.5 w-3.5 text-success" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+    </button>
   );
 }
 
@@ -204,7 +247,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning-strong">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <p>
-                Sem {secretNoun}, os webhooks são recusados. Siga os passos abaixo e salve {secretNoun} da{" "}
+                Sem {secretNoun}, os webhooks são recusados. Siga o passo a passo e salve {secretNoun} da{" "}
                 {provider?.label}.
               </p>
             </div>
