@@ -23,11 +23,11 @@ export function SaleDetailPage() {
   const sale = useSale(workspace.id, saleId);
   const back = (
     <Link
-      to={`/w/${workspace.id}/vendas`}
+      to={`/w/${workspace.id}/dashboard`}
       className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
     >
       <ArrowLeft className="h-4 w-4" />
-      Vendas
+      Dashboard
     </Link>
   );
 
@@ -136,7 +136,7 @@ export function SaleDetailPage() {
                   {formatDateTime(s.trial_converted_at, workspace.timezone)}
                   {s.converted_sale_id && (
                     <Link
-                      to={`/w/${workspace.id}/vendas/${s.converted_sale_id}`}
+                      to={`/w/${workspace.id}/dashboard/vendas/${s.converted_sale_id}`}
                       className="ml-2 font-medium text-primary underline-offset-4 hover:underline"
                     >
                       Ver venda

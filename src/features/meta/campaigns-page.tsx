@@ -5,8 +5,8 @@ import {
   AlertTriangle,
   ChartNoAxesCombined,
   Coins,
+  Gauge,
   Images,
-  LayoutDashboard,
   Plug,
   RefreshCw,
   Rows3,
@@ -22,29 +22,17 @@ import { ActionHistoryButton, MetaControlsProvider, useTouchedIds } from "@/feat
 import { useSalesRealtime } from "@/features/sales/api";
 import { FilterBar, useResultFilters } from "@/features/results/filters";
 import { useResults } from "@/features/results/use-results";
-import { change, type NodeMetrics } from "@/features/results/metrics";
-import {
-  fmt,
-  MetricCard,
-  RoasTargetButton,
-  SpendRevenueChart,
-  useRoasTarget,
-} from "@/features/results/components";
+import type { NodeMetrics } from "@/features/results/metrics";
+import { fmt, RoasTargetButton, useRoasTarget } from "@/features/results/components";
 import { CampaignTree } from "@/features/results/campaign-tree";
-import { SaleLine, timeAgo, useFreshIds } from "@/features/results/recent-sales";
+import { timeAgo } from "@/features/results/recent-sales";
 import { ProductCostsDialog } from "@/features/results/product-costs";
-import {
-  CampaignRanking,
-  CreativeGrid,
-  flattenAds,
-  TopCreatives,
-} from "@/features/results/campaign-visuals";
-import { formatMoney } from "@/lib/format";
+import { CreativeGrid, flattenAds } from "@/features/results/campaign-visuals";
 import { cn } from "@/lib/utils";
 
-type Tab = "resumo" | "campanhas" | "criativos";
+// Só campanhas e as métricas de cada uma; os KPIs gerais (lucro, ROAS do negócio) ficam no Dashboard.
+type Tab = "campanhas" | "criativos";
 const TABS: { key: Tab; label: string; icon: LucideIcon }[] = [
-  { key: "resumo", label: "Resumo", icon: LayoutDashboard },
   { key: "campanhas", label: "Campanhas", icon: Rows3 },
   { key: "criativos", label: "Criativos", icon: Images },
 ];
@@ -77,12 +65,12 @@ function CampaignsContent() {
   const [params, setParams] = useSearchParams();
   const tab: Tab = TABS.some((x) => x.key === params.get("aba"))
     ? (params.get("aba") as Tab)
-    : "resumo";
+    : "campanhas";
   const setTab = (next: Tab) =>
     setParams(
       (prev) => {
         const q = new URLSearchParams(prev);
-        if (next === "resumo") q.delete("aba");
+        if (next === "campanhas") q.delete("aba");
         else q.set("aba", next);
         return q;
       },
@@ -96,8 +84,8 @@ function CampaignsContent() {
       title="Campanhas"
       subtitle={
         results.lastSync
-          ? `ROAS, CPA e lucro por campanha, conjunto e anúncio. Meta sincronizada ${timeAgo(results.lastSync, workspace.timezone)}.`
-          : "ROAS, CPA e lucro por campanha, conjunto e anúncio."
+          ? `Métricas de cada campanha, conjunto e anúncio. Meta sincronizada ${timeAgo(results.lastSync, workspace.timezone)}.`
+          : "Métricas de cada campanha, conjunto e anúncio."
       }
       actions={
         <>
@@ -131,10 +119,9 @@ function CampaignsContent() {
 
   const c = results.computed;
   const t = c?.totals;
-  const p = c?.previous;
   const cur = workspace.currency;
   const tree = c?.tree ?? [];
-  // Total da tabela = KPIs do topo (inclui a linha de vendas sem campanha).
+  // Total da tabela = KPIs do Dashboard (inclui a linha de vendas sem campanha).
   const treeTotals: NodeMetrics | null = t
     ? {
         spendCents: t.spendCents,
@@ -149,10 +136,6 @@ function CampaignsContent() {
   const withoutCampaign = (c?.sales ?? []).filter(
     (s) => s.status === "approved" && s.currency === cur && !s.campaign_id,
   );
-  const latest = (c?.sales ?? []).filter((s) => s.status === "approved").slice(0, 5);
-  // Hoje: a Meta só tem o gasto do dia inteiro de ontem, então gasto e derivados ficam sem comparação.
-  const spendChange = (a: number | null, b: number | null) =>
-    filters.partialComparison ? null : change(a, b);
   const creatives = flattenAds(tree);
   const noCampaigns = (
     <EmptyState
@@ -166,9 +149,6 @@ function CampaignsContent() {
       }
     />
   );
-  const noCosts =
-    results.products.length > 0 &&
-    results.products.every((x) => !x.cost_cents && !x.fee_percent_bps && !x.fee_fixed_cents);
 
   return (
     <div className="space-y-5">
@@ -197,8 +177,8 @@ function CampaignsContent() {
                   Conecte a Meta Ads para ver gasto, ROAS e lucro
                 </p>
                 <p className="mt-0.5 text-muted-foreground">
-                  Por enquanto, mostramos só o que veio das vendas. Com a conta conectada, cada
-                  campanha ganha gasto, CPA e lucro.
+                  Com a conta conectada, cada campanha, conjunto e anúncio aparece aqui com gasto,
+                  CPA e lucro, e dá para pausar, ativar e mudar orçamentos.
                 </p>
               </div>
             </div>
@@ -207,105 +187,6 @@ function CampaignsContent() {
             </Button>
           </div>
         </Panel>
-      )}
-
-      {t && (
-        <div
-          className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
-          aria-busy={results.isPending}
-        >
-          <MetricCard
-            emphasis
-            label="Faturamento"
-            value={formatMoney(t.revenueCents, cur)}
-            delta={change(t.revenueCents, p?.revenueCents ?? null)}
-            hint={filters.comparisonLabel}
-          />
-          <MetricCard
-            label="Gasto"
-            value={results.metaConnected ? formatMoney(t.spendCents, cur) : "—"}
-            delta={results.metaConnected ? spendChange(t.spendCents, p?.spendCents ?? null) : null}
-            invert
-            hint={
-              filters.productId
-                ? "de todas as campanhas"
-                : results.metaConnected
-                  ? filters.comparisonLabel
-                  : "conecte a Meta"
-            }
-            info={
-              filters.productId
-                ? "A Meta não separa gasto por produto: o gasto é o das campanhas filtradas."
-                : undefined
-            }
-          />
-          <MetricCard
-            label="Lucro"
-            value={formatMoney(t.profitCents, cur)}
-            tone={t.profitCents < 0 ? "danger" : t.profitCents > 0 ? "success" : undefined}
-            delta={spendChange(t.profitCents, p?.profitCents ?? null)}
-            hint={
-              noCosts ? (
-                <button
-                  type="button"
-                  className="underline-offset-2 hover:text-primary hover:underline"
-                  onClick={() => setCostsOpen(true)}
-                >
-                  informe os custos
-                </button>
-              ) : (
-                filters.comparisonLabel
-              )
-            }
-            info="Faturamento − taxas do checkout − custo dos produtos − gasto em anúncios."
-          />
-          <MetricCard
-            label="ROAS"
-            value={fmt.roas(t.roas)}
-            delta={spendChange(t.roas, p?.roas ?? null)}
-            hint={t.roas === null ? "sem gasto no período" : `meta ${fmt.roas(target)}`}
-            info="Faturamento dividido pelo gasto. Inclui vendas sem origem identificada."
-          />
-          <MetricCard
-            label="CPA"
-            value={fmt.money(t.cpaCents, cur)}
-            delta={spendChange(t.cpaCents, p?.cpaCents ?? null)}
-            invert
-            hint="custo por venda"
-          />
-          <MetricCard
-            label="Vendas"
-            value={fmt.int(t.approvedCount)}
-            delta={change(t.approvedCount, p?.approvedCount ?? null)}
-            hint={filters.comparisonLabel}
-          />
-          <MetricCard
-            label="Ticket médio"
-            value={fmt.money(t.ticketCents, cur)}
-            delta={change(t.ticketCents, p?.ticketCents ?? null)}
-            hint={filters.comparisonLabel}
-          />
-          <MetricCard
-            label="Vendas atribuídas"
-            value={fmt.pct(t.matchedShare)}
-            hint={
-              t.unmatchedApprovedCount > 0 ? (
-                <Link
-                  to={`${base}/vendas?visao=sem-origem`}
-                  className="underline-offset-2 hover:text-primary hover:underline"
-                >
-                  {t.unmatchedApprovedCount === 1
-                    ? "1 sem origem"
-                    : `${fmt.int(t.unmatchedApprovedCount)} sem origem`}
-                </Link>
-              ) : t.approvedCount ? (
-                "ligadas a um anúncio"
-              ) : (
-                "sem vendas no período"
-              )
-            }
-          />
-        </div>
       )}
 
       {t?.otherCurrencySpend && (
@@ -319,7 +200,7 @@ function CampaignsContent() {
         // Fica presa abaixo do topo ao rolar: a troca de visão está sempre à mão.
         <div className="sticky top-14 z-10 -mx-4 flex items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5 md:top-16 md:-mx-8 md:px-8">
           <div
-            className="grid w-full grid-cols-3 gap-1 rounded-lg border border-border bg-muted p-1 sm:inline-flex sm:w-auto"
+            className="grid w-full grid-cols-2 gap-1 rounded-lg border border-border bg-muted p-1 sm:inline-flex sm:w-auto"
             role="tablist"
             aria-label="Visão"
           >
@@ -354,71 +235,20 @@ function CampaignsContent() {
               );
             })}
           </div>
-          {tab !== "resumo" && (
-            <div className="hidden sm:block">
-              <RoasTargetButton target={target} onChange={setTarget} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {c && (tab === "resumo" || !results.metaConnected) && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Panel
-              title={
-                c.series.mode === "hour"
-                  ? "Faturamento por hora"
-                  : results.metaConnected
-                    ? "Gasto × faturamento por dia"
-                    : "Faturamento por dia"
-              }
-              description={
-                c.series.mode === "hour"
-                  ? "A Meta informa o gasto por dia, não por hora."
-                  : `${formatMoney(t!.revenueCents, cur)} faturados${results.metaConnected ? ` · ${formatMoney(t!.spendCents, cur)} investidos` : ""}`
-              }
+          <div className="hidden items-center gap-3 sm:flex">
+            <Link
+              to={`${base}/dashboard`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary"
             >
-              <SpendRevenueChart
-                points={c.series.points}
-                mode={c.series.mode}
-                currency={cur}
-                showSpend={results.metaConnected}
-              />
-            </Panel>
-            <LatestSales sales={latest} to={`${base}/vendas`} />
+              <Gauge className="h-3.5 w-3.5" />
+              Métricas gerais no Dashboard
+            </Link>
+            <RoasTargetButton target={target} onChange={setTarget} />
           </div>
-          {results.metaConnected && (
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-              <Panel
-                title="Campanhas"
-                description="Faturamento contra gasto de cada campanha, na mesma escala."
-              >
-                {tree.length === 0 ? (
-                  noCampaigns
-                ) : (
-                  <CampaignRanking
-                    nodes={tree}
-                    currency={cur}
-                    target={target}
-                    onOpenAll={() => setTab("campanhas")}
-                  />
-                )}
-              </Panel>
-              <Panel title="Criativos que mais dão lucro">
-                <TopCreatives
-                  items={creatives}
-                  currency={cur}
-                  target={target}
-                  onOpenAll={creatives.length ? () => setTab("criativos") : undefined}
-                />
-              </Panel>
-            </div>
-          )}
         </div>
       )}
 
-      {needsWriteScope && tab !== "resumo" && (
+      {needsWriteScope && (
         <Panel>
           <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-3">
@@ -463,7 +293,7 @@ function CampaignsContent() {
                 unattributed={{
                   sales: withoutCampaign.length,
                   revenueCents: withoutCampaign.reduce((n, s) => n + s.gross_amount_cents, 0),
-                  to: `${base}/vendas?visao=sem-origem`,
+                  to: `${base}/dashboard?visao=sem-origem`,
                 }}
               />
             )
@@ -490,38 +320,5 @@ function CampaignsContent() {
         products={results.products}
       />
     </div>
-  );
-}
-
-function LatestSales({
-  sales,
-  to,
-}: {
-  sales: Parameters<typeof SaleLine>[0]["sale"][];
-  to: string;
-}) {
-  const fresh = useFreshIds(sales.map((s) => s.id));
-  return (
-    <Panel
-      title="Últimas vendas"
-      description="Aparecem aqui na hora em que são aprovadas."
-      action={
-        <Link to={to} className="shrink-0 text-xs font-medium text-primary hover:underline">
-          Ver todas
-        </Link>
-      }
-    >
-      {sales.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-          Nenhuma venda aprovada no período.
-        </p>
-      ) : (
-        <ul className="divide-y divide-border">
-          {sales.map((s) => (
-            <SaleLine key={s.id} sale={s} fresh={fresh.has(s.id)} compact />
-          ))}
-        </ul>
-      )}
-    </Panel>
   );
 }

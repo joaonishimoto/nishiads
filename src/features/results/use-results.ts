@@ -13,7 +13,7 @@ import {
 import type { ResultFiltersState } from "@/features/results/filters";
 
 /**
- * Tudo que Vendas e Campanhas precisam para o recorte atual: vendas e insights do período
+ * Tudo que o Dashboard e Campanhas precisam para o recorte atual: vendas e insights do período
  * e do período anterior (comparação), estrutura da Meta e custos dos produtos.
  */
 export function useResults(

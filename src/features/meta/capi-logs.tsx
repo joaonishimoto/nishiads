@@ -128,7 +128,7 @@ function EventRow({ event }: { event: CapiEvent }) {
               <>
                 {" · "}
                 <Link
-                  to={`/w/${workspace.id}/vendas/${event.sale_id}`}
+                  to={`/w/${workspace.id}/dashboard/vendas/${event.sale_id}`}
                   className="font-medium text-primary hover:underline"
                 >
                   Ver venda

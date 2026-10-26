@@ -1,5 +1,5 @@
 /**
- * Cálculo das métricas de Vendas e Campanhas. Funções puras: recebem as linhas já
+ * Cálculo das métricas do Dashboard e de Campanhas. Funções puras: recebem as linhas já
  * carregadas (vendas do período, insights diários, estrutura da Meta e produtos) e
  * devolvem totais, série diária e a árvore Campanha › Conjunto › Anúncio.
  */

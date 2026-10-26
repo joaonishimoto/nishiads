@@ -23,7 +23,7 @@ import {
 } from "@/lib/period";
 
 const PERIODS: PeriodKey[] = ["today", "yesterday", "7d", "30d", "custom"];
-/** Parâmetros dos filtros globais: os mesmos em Vendas e Campanhas. */
+/** Parâmetros dos filtros globais: os mesmos no Dashboard e em Campanhas. */
 const FILTER_PARAMS = ["periodo", "de", "ate", "conta", "produto"] as const;
 const ALL = "__all";
 
@@ -54,7 +54,7 @@ function comparisonLabel(period: PeriodKey, span: number): string {
 
 /**
  * Período, conta e produto vivem na URL (dá para compartilhar o link) e são lembrados
- * por workspace: abrir Vendas depois de Campanhas mantém o mesmo recorte.
+ * por workspace: abrir o Dashboard depois de Campanhas mantém o mesmo recorte.
  */
 export function useResultFilters(): ResultFiltersState {
   const { workspace } = useWorkspace();

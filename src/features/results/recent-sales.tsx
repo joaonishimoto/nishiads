@@ -67,7 +67,7 @@ export function SaleLine({
       )}
     >
       <Link
-        to={`/w/${workspace.id}/vendas/${sale.id}`}
+        to={`/w/${workspace.id}/dashboard/vendas/${sale.id}`}
         className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 px-4 py-3 transition-colors hover:bg-surface-hover"
       >
         <span className="flex min-w-0 items-center gap-2">

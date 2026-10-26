@@ -6,11 +6,11 @@ import {
   BellRing,
   ChartNoAxesCombined,
   ChevronLeft,
+  Gauge,
   LayoutDashboard,
   LogOut,
   Menu,
   Plug,
-  Receipt,
   Settings,
   UserRound,
   type LucideIcon,
@@ -41,7 +41,7 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
   const { workspace } = useWorkspace();
   const base = `/w/${workspace.id}`;
   const overview: NavItem = { to: base, label: "Visão geral", icon: LayoutDashboard, end: true };
-  const sales: NavItem = { to: `${base}/vendas`, label: "Vendas", icon: Receipt };
+  const dashboard: NavItem = { to: `${base}/dashboard`, label: "Dashboard", icon: Gauge };
   const campaigns: NavItem = { to: `${base}/campanhas`, label: "Campanhas", icon: ChartNoAxesCombined };
   const pending = usePendingAlertsCount(workspace.id).data ?? 0;
   const alerts: NavItem = { to: `${base}/alertas`, label: "Alertas", icon: BellRing, badge: pending };
@@ -50,7 +50,7 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
     base,
     groups: [
       { label: "", items: [overview] },
-      { label: "Resultados", items: [sales, campaigns, alerts] },
+      { label: "Resultados", items: [dashboard, campaigns, alerts] },
       {
         label: "Recursos",
         items: [integrations, { to: `${base}/ajuda`, label: "Documentação", icon: BookOpen }],
@@ -59,7 +59,7 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
     /** Fica no pé da sidebar, separado das áreas de trabalho. */
     footer: [{ to: `${base}/ajustes`, label: "Ajustes", icon: Settings }],
     // Integrações (configurada uma vez) fica no "Mais"; alertas pedem resposta no dia a dia.
-    tabs: [{ ...overview, label: "Início" }, sales, campaigns, alerts],
+    tabs: [{ ...overview, label: "Início" }, dashboard, campaigns, alerts],
   };
 }
 
