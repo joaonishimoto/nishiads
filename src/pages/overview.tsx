@@ -78,8 +78,8 @@ export function OverviewPage() {
         title="Primeiros passos"
         description={
           pending === 0
-            ? "Tudo conectado. O dashboard com ROAS, CPA e lucro chega na próxima atualização."
-            : "O dashboard com ROAS, CPA e lucro aparece aqui conforme você conecta as fontes."
+            ? "Tudo conectado. ROAS, CPA e lucro por anúncio estão em Campanhas."
+            : "ROAS, CPA e lucro por anúncio aparecem em Campanhas conforme você conecta as fontes."
         }
       >
         <ul className="divide-y divide-border">
