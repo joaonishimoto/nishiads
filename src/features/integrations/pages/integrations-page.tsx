@@ -110,6 +110,17 @@ export function IntegrationsPage() {
       )}
 
       <Panel
+        title="Como conectar uma conta"
+        description="Vale para a primeira conta e para as próximas. Cada conta de checkout é uma integração, com URL e chaves próprias."
+      >
+        <div className="space-y-3 p-4">
+          {AVAILABLE_PROVIDERS.map((provider) => (
+            <ProviderGuide key={provider.label} provider={provider} withCreateStep />
+          ))}
+        </div>
+      </Panel>
+
+      <Panel
         title="Parâmetros de URL dos anúncios"
         description="Cole no campo “Parâmetros de URL” de cada anúncio no Gerenciador da Meta."
       >
@@ -120,6 +131,41 @@ export function IntegrationsPage() {
 
       {canManage && <CreateIntegrationDialog open={creating} onOpenChange={setCreating} />}
     </div>
+  );
+}
+
+const AVAILABLE_PROVIDERS = Object.values(PROVIDERS).filter((p) => p.available && p.steps.length > 0);
+
+/** Passo a passo de um provedor. Com `withCreateStep`, começa pela criação da integração no Nishiads. */
+function ProviderGuide({
+  provider,
+  open,
+  withCreateStep = false,
+}: {
+  provider: (typeof PROVIDERS)[ProviderKey];
+  open?: boolean;
+  withCreateStep?: boolean;
+}) {
+  const steps = withCreateStep
+    ? [
+        `Aqui no Nishiads, clique em Conectar checkout, escolha ${provider.label} e dê um nome que identifique a conta (ex.: ${provider.label} FreelaPro). Copie a URL do webhook que aparece no card.`,
+        ...provider.steps,
+      ]
+    : provider.steps;
+  return (
+    <details className="rounded-md border border-border" open={open}>
+      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-foreground">
+        Como configurar na {provider.label}
+      </summary>
+      <ol className="list-decimal space-y-1.5 border-t border-border py-3 pl-8 pr-3 text-sm text-muted-foreground">
+        {steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      {provider.note && (
+        <p className="border-t border-border px-3 py-3 text-sm text-muted-foreground">{provider.note}</p>
+      )}
+    </details>
   );
 }
 
@@ -168,19 +214,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <CopyField value={url} label="URL do webhook" />
           </div>
           {provider && provider.steps.length > 0 && (
-            <details className="rounded-md border border-border" open={!integration.has_secret}>
-              <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-foreground">
-                Como configurar na {provider.label}
-              </summary>
-              <ol className="list-decimal space-y-1.5 border-t border-border py-3 pl-8 pr-3 text-sm text-muted-foreground">
-                {provider.steps.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-              {provider.note && (
-                <p className="border-t border-border px-3 py-3 text-sm text-muted-foreground">{provider.note}</p>
-              )}
-            </details>
+            <ProviderGuide provider={provider} open={!integration.has_secret} />
           )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
             <label className="flex items-center gap-2 text-sm text-foreground">
