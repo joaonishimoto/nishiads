@@ -297,7 +297,7 @@ export function CampaignsPage() {
 
       {c && results.metaConnected && (
         // Fica presa abaixo do topo ao rolar: a troca de visão está sempre à mão.
-        <div className="sticky top-14 z-10 -my-2 flex items-center justify-between gap-3 bg-background/95 py-2 backdrop-blur-md md:top-16">
+        <div className="sticky top-14 z-10 -mx-4 flex items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5 md:top-16 md:-mx-8 md:px-8">
           <div
             className="grid w-full grid-cols-3 gap-1 rounded-lg border border-border bg-muted p-1 sm:inline-flex sm:w-auto"
             role="tablist"
