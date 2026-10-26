@@ -56,7 +56,7 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
       {
         key: "webhook_secret",
         label: "Signing secret do webhook",
-        hint: "Na Stripe, abra o destino do webhook e clique em Revelar ao lado de Signing secret.",
+        hint: "Na Stripe, abra o destino do webhook e clique em Revelar ao lado de Segredo de assinatura.",
         placeholder: "whsec_...",
         pattern: /^whsec_[A-Za-z0-9]{16,}$/,
         patternMessage: "Cole o signing secret completo, que começa com whsec_.",
@@ -71,9 +71,9 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
       },
     ],
     steps: [
-      "Na Stripe, abra Desenvolvedores › Webhooks › Adicionar destino e escolha Eventos na sua conta.",
+      "Na Stripe, abra Desenvolvedores › Webhooks e clique em Adicionar destino. Em Eventos de, deixe Sua conta.",
       {
-        text: "Selecione os 6 eventos abaixo. Copie cada nome e cole na busca de eventos da Stripe:",
+        text: "Selecione os 6 eventos abaixo (copie cada nome e cole na busca de eventos) e clique em Continuar:",
         copyItems: [
           "checkout.session.completed",
           "checkout.session.async_payment_succeeded",
@@ -83,9 +83,11 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
           "charge.dispute.created",
         ],
       },
-      "Em URL do endpoint, cole a URL do webhook que aparece no card da integração aqui no Nishiads e crie o destino.",
-      "Abra o destino criado e copie o Signing secret (whsec_...).",
-      "Em Desenvolvedores › Chaves de API, crie uma chave restrita com permissão Leitura em Checkout Sessions, Invoices e Charges. Copie a chave (rk_live_...).",
+      "Em Tipo de destino, escolha Endpoint de webhook e clique em Continuar.",
+      "Dê um nome ao destino (ex.: Nishiads). Em URL do endpoint, cole a URL do webhook que aparece no card da integração aqui no Nishiads e clique em Criar destino.",
+      "Na página do destino criado, clique em Revelar ao lado de Segredo de assinatura e copie o valor (whsec_...).",
+      "Agora a chave de leitura: em Desenvolvedores › Chaves de API, clique em Criar chave secret e escolha Alimentando uma integração que você criou. Na tela seguinte, escolha a chave restrita.",
+      "Dê o nome Nishiads. Nas permissões, marque Leitura em Checkout Sessions, Invoices e Charges e deixe o resto em Nenhum. Crie e copie a chave (rk_live_...).",
       "Clique em Salvar chaves aqui e cole as duas.",
       "Para conferir, reenvie um evento pela Stripe (no destino do webhook, abra um evento e clique em Reenviar). Ele aparece em Logs de integração.",
     ],
