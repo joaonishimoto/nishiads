@@ -87,7 +87,7 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
       "Dê um nome ao destino (ex.: Nishiads). Em URL do endpoint, cole a URL do webhook que aparece no card da integração aqui no Nishiads e clique em Criar destino.",
       "Na página do destino criado, clique em Revelar ao lado de Segredo de assinatura e copie o valor (whsec_...).",
       "Agora a chave de leitura: em Desenvolvedores › Chaves de API, clique em Criar chave restrita. Não use Criar chave secret, que gera uma chave sk_ com acesso total à conta. Em Escolha um modelo de permissão, escolha Relatórios, análises e contabilidade (somente leitura).",
-      "Em Nome da chave, coloque Nishiads. Confira que Checkout Sessions, Invoices e Charges estão em Leitura. Clique em Criar chave, confirme o código e copie a chave, que começa com rk_live_.",
+      "Em Nome da chave, coloque Nishiads. O modelo deixa Checkout Sessions em Nenhum: troque para Leitura. Confira que Invoices e Charges and Refunds já estão em Leitura e deixe a coluna Permissões do Connect em Nenhum. Clique em Criar chave, confirme o código e copie a chave, que começa com rk_live_.",
       "Clique em Salvar chaves aqui e cole as duas.",
       "Para conferir, reenvie um evento pela Stripe (no destino do webhook, abra um evento e clique em Reenviar). Ele aparece em Logs de integração.",
     ],
