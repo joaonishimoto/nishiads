@@ -1,8 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import { splitUtmRef } from "@/lib/utm";
-import type { SaleListItem } from "@/features/sales/api";
+import type { ResultSale } from "@/features/results/metrics";
 
-type Source = Pick<SaleListItem, "campaign" | "adset" | "ad" | "utm_campaign" | "utm_medium" | "utm_content" | "attribution_status">;
+type Source = Pick<ResultSale, "campaign" | "adset" | "ad" | "utm_campaign" | "utm_medium" | "utm_content" | "attribution_status">;
 
 /** Campanha › Conjunto › Criativo. Sem registro sincronizado, mostra o nome que veio no UTM. */
 export function originParts(sale: Source): string[] {

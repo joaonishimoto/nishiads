@@ -84,3 +84,54 @@ export function periodRange(
     }
   }
 }
+
+/** Dias (YYYY-MM-DD, inclusive) do período no fuso informado: a mesma regra de periodRange. */
+export function periodDays(
+  period: PeriodKey,
+  timeZone: string,
+  now: Date = new Date(),
+  custom?: { from: string; to: string },
+): { first: string; last: string } {
+  const today = ymdInZone(now, timeZone);
+  switch (period) {
+    case "today":
+      return { first: today, last: today };
+    case "yesterday":
+      return { first: addDays(today, -1), last: addDays(today, -1) };
+    case "7d":
+      return { first: addDays(today, -6), last: today };
+    case "30d":
+      return { first: addDays(today, -29), last: today };
+    case "custom": {
+      const first = custom?.from || today;
+      const last = custom?.to && custom.to >= first ? custom.to : first;
+      return { first, last };
+    }
+  }
+}
+
+/** Quantidade de dias entre dois YYYY-MM-DD, contando os dois. */
+export function daySpan(first: string, last: string): number {
+  return Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 86_400_000) + 1;
+}
+
+/** O período de mesmo tamanho logo antes: base das comparações. */
+export function previousDays(days: { first: string; last: string }): { first: string; last: string } {
+  const span = daySpan(days.first, days.last);
+  return { first: addDays(days.first, -span), last: addDays(days.first, -1) };
+}
+
+/** Dias de first a last, inclusive. */
+export function eachDay(first: string, last: string): string[] {
+  const out: string[] = [];
+  for (let d = first; d <= last; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+/** Intervalo UTC (ISO) que cobre os dias informados no fuso. */
+export function daysToRange(days: { first: string; last: string }, timeZone: string): DateRange {
+  return {
+    from: startOfDayInZone(days.first, timeZone).toISOString(),
+    to: startOfDayInZone(addDays(days.last, 1), timeZone).toISOString(),
+  };
+}
