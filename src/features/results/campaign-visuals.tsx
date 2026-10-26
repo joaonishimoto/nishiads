@@ -252,7 +252,7 @@ export function CreativeGrid({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div
-          className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto"
+          className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]"
           role="group"
           aria-label="Filtrar criativos"
         >
