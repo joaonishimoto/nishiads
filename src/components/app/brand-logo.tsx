@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Identidade Nishiads: mesmas cores da marca Nishistack
+ * Identidade nishiADS: mesmas cores da marca Nishistack
  * (Azul Nishi #1E3D66 e Creme Stack #FAF5EB, tokens `brand` e `brand-cream`).
  * Símbolo: três barras crescentes (resultado de anúncio) numa grade de 24 px.
  */
@@ -31,7 +31,7 @@ export function BrandSymbol({ className }: { className?: string }) {
 /** Ícone de app: quadrado arredondado azul com o símbolo em creme. */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={cn("block h-8 w-8 shrink-0", className)} role="img" aria-label="Nishiads">
+    <svg viewBox="0 0 32 32" className={cn("block h-8 w-8 shrink-0", className)} role="img" aria-label="nishiADS">
       <rect width="32" height="32" rx="7" className="fill-brand" />
       <g className="fill-brand-cream" transform="translate(7 7) scale(0.75)">
         <SymbolShapes />
@@ -51,7 +51,7 @@ export function BrandLogo({
   return (
     <span
       role="img"
-      aria-label="Nishiads"
+      aria-label="nishiADS"
       className={cn(
         "inline-flex shrink-0 items-center gap-[0.35em] font-brand font-medium",
         tone === "positive" ? "text-brand" : "text-brand-cream",
@@ -60,7 +60,7 @@ export function BrandLogo({
     >
       <BrandSymbol />
       <span aria-hidden className="whitespace-nowrap text-[1.08em] leading-none tracking-[-0.01em]">
-        nishiads
+        nishiADS
       </span>
     </span>
   );
