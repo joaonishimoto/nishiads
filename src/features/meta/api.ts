@@ -4,7 +4,7 @@ import type { Tables } from "@/types/database";
 
 export type MetaConnection = Pick<
   Tables<"meta_connections">,
-  "id" | "meta_user_name" | "token_expires_at" | "status" | "last_error" | "created_at" | "updated_at"
+  "id" | "meta_user_name" | "token_expires_at" | "status" | "last_error" | "scopes" | "created_at" | "updated_at"
 >;
 
 export type AdAccount = Pick<
@@ -79,7 +79,7 @@ export function useMetaConnections(workspaceId: string) {
     queryFn: async (): Promise<MetaConnection[]> => {
       const { data, error } = await supabase
         .from("meta_connections")
-        .select("id, meta_user_name, token_expires_at, status, last_error, created_at, updated_at")
+        .select("id, meta_user_name, token_expires_at, status, last_error, scopes, created_at, updated_at")
         .eq("workspace_id", workspaceId)
         .order("created_at");
       if (error) throw error;

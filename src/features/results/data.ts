@@ -92,7 +92,9 @@ export function useAdStructure(workspaceId: string, version: string | null, enab
         fetchAll<AdStructure["campaigns"][number]>((from, to) =>
           supabase
             .from("campaigns")
-            .select("id, name, ad_account_id, effective_status")
+            .select(
+              "id, name, ad_account_id, status, effective_status, daily_budget_cents, lifetime_budget_cents",
+            )
             .eq("workspace_id", workspaceId)
             .order("id")
             .range(from, to),
@@ -100,7 +102,9 @@ export function useAdStructure(workspaceId: string, version: string | null, enab
         fetchAll<AdStructure["adsets"][number]>((from, to) =>
           supabase
             .from("adsets")
-            .select("id, name, ad_account_id, campaign_id, effective_status")
+            .select(
+              "id, name, ad_account_id, campaign_id, status, effective_status, daily_budget_cents, lifetime_budget_cents",
+            )
             .eq("workspace_id", workspaceId)
             .order("id")
             .range(from, to),
@@ -109,7 +113,7 @@ export function useAdStructure(workspaceId: string, version: string | null, enab
           supabase
             .from("ads")
             .select(
-              "id, name, ad_account_id, campaign_id, adset_id, effective_status, thumbnail_url, preview_link",
+              "id, name, ad_account_id, campaign_id, adset_id, status, effective_status, thumbnail_url, preview_link",
             )
             .eq("workspace_id", workspaceId)
             .order("id")

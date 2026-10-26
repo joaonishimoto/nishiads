@@ -32,6 +32,7 @@ import {
   type AdAccount,
   type MetaConnection,
 } from "@/features/meta/api";
+import { WRITE_SCOPE } from "@/features/meta/actions";
 import { friendlyError } from "@/lib/errors";
 import { formatDate, formatDateTime, plural } from "@/lib/format";
 
@@ -296,6 +297,10 @@ function ConnectionRow({
             {connection.token_expires_at
               ? `Acesso válido até ${formatDate(connection.token_expires_at, workspace.timezone)}`
               : "Acesso sem data de expiração"}
+            {" · "}
+            {connection.scopes.includes(WRITE_SCOPE)
+              ? "pode pausar e mudar orçamentos"
+              : "só leitura: reconecte para pausar e mudar orçamentos daqui"}
           </p>
         </div>
         {canManage && (

@@ -45,7 +45,7 @@ No painel do Supabase → **Authentication → URL Configuration**, adicione a U
 | Supabase › Edge Functions › Secrets | `VAPID_SUBJECT` | contato do remetente (`https://...` ou `mailto:...`) |
 | Supabase › Edge Functions › Secrets | `META_APP_ID` | ID do app da Meta |
 | Supabase › Edge Functions › Secrets | `META_APP_SECRET` | chave secreta do app (troca do código e `appsecret_proof`) |
-| Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas*; sem ele, usa `scope=ads_read,business_management` |
+| Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas* (com `ads_read`, `ads_management` e `business_management`); sem ele, usa `scope=ads_read,ads_management,business_management` |
 | Supabase › Edge Functions › Secrets | `APP_URL` | opcional: origens aceitas na volta do login, separadas por vírgula (padrão `https://nishiads.areadeteste.com,http://localhost:5173`) |
 
 Segredos (token da Meta, segredos de webhook, chave VAPID privada) **nunca** vão para o frontend: ficam no Supabase Vault e nos secrets das Edge Functions.
@@ -88,7 +88,17 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 - **Erros:** retry com backoff (2s, 4s, 8s) em erro transitório; token expirado/revogado (190, 102, subcodes 458–467) marca a conexão e as contas como *Reconectar* e manda push para owners/admins. O app avisa 7 dias antes do token expirar.
 - **Versão da API:** `GRAPH_API_VERSION` em `supabase/functions/_shared/meta/graph.ts`, a única ocorrência.
 - **Uma execução por conta:** `service_claim_ad_account_sync` trava a conta; trava com mais de 10 min é retomada.
+- **Controle pelo app** (`meta-actions`): owners e admins pausam e ativam campanha, conjunto ou anúncio e mudam o orçamento (diário ou total, o tipo que o objeto já usa) direto na tabela de Campanhas. Precisa da permissão `ads_management` no login da Meta. A função confere o papel, limita 20 ações por minuto por usuário, confere na Meta onde está o orçamento (campanha CBO × conjunto), faz o POST, relê o objeto e os filhos e grava tudo em `meta_action_log` (Histórico na tela). A lógica fica em `_shared/meta/write.ts` (`setMetaObjectStatus`, `setMetaBudget`), reusada pelas regras automáticas.
 - **Agendar o cron** (uma vez, no SQL Editor): `select private.schedule_meta_sync('https://<ref>.supabase.co');`. Cria o segredo `nishiads_cron_secret` no Vault, que o job manda no header `x-cron-secret`.
+
+## Alertas e regras automáticas
+
+- **Regras** (Alertas › Regras, owner/admin): *gastou sem vender*, *ROAS abaixo da meta* ou *CPA acima do máximo*, por campanha, conjunto ou anúncio, olhando hoje, os últimos 3 ou 7 dias (fuso do workspace). Escopo opcional por conta e campanha, e um gasto mínimo antes de julgar ROAS e CPA. Os números são os mesmos do dashboard: vendas aprovadas atribuídas ao item e gasto dos insights diários. Só itens **ativos** na Meta entram.
+- **Ação:** *só avisar*, *avisar e pedir para pausar* (botão Pausar no push e na tela) ou *pausar sozinho*, com limite de pausas automáticas por regra por dia (padrão 3). Passou do limite, ou a Meta recusou, vira pedido de aprovação com o motivo.
+- **Quando roda:** no fim de cada sincronização da Meta (`meta-sync`), para cada workspace que teve conta atualizada, e no botão *Conferir agora* (função `alerts`). `service_evaluate_alert_rules` grava no máximo **um alerta por regra, item e dia** (`alerts`), então o mesmo anúncio não dispara de novo no mesmo dia, nem se alguém reativar. Pedido sem resposta expira em 24 h.
+- **Pausar:** usa `setMetaObjectStatus` de `_shared/meta/write.ts` (o mesmo dos botões de Campanhas), com `source = "rule"`; cada tentativa fica em `meta_action_log`. Precisa da permissão `ads_management` na conexão com a Meta.
+- **Push:** um por alerta, ou um resumo quando chegam mais de 3 de uma vez. Respeita a nova preferência *Alertas das regras* e o horário de silêncio de cada membro (a pausa automática acontece mesmo no silêncio). No Chrome/Android o push tem o botão **Pausar**, que abre o alerta com a confirmação.
+- **Limites:** 30 regras por workspace; a prévia do formulário mostra até 50 itens.
 
 ## Conversions API da Meta
 
@@ -119,9 +129,10 @@ psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_test.sql
 Todo dado pertence a um `workspace`; o usuário pode estar em vários, com papel `owner`, `admin` ou `viewer`.
 
 - **Tenancy:** `profiles`, `workspaces`, `workspace_members`, `workspace_invitations`
-- **Anúncios:** `meta_connections` (token no Vault), `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert)
+- **Anúncios:** `meta_connections` (token no Vault), `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert), `meta_action_log` (alterações feitas pelo app na Meta)
 - **Vendas:** `checkout_integrations`, `products`, `sales` (único em `(workspace_id, provider, external_order_id)`), `webhook_events`
 - **Notificações:** `notification_subscriptions`, `notification_preferences`
+- **Alertas:** `alert_rules`, `alerts`
 - **Conversions API:** `meta_capi_configs` (token no Vault), `meta_capi_events` (fila e log)
 
 Regras que valem para todas as etapas:

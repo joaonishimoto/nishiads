@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { derived, type Level, type NodeMetrics, type TreeNode } from "@/features/results/metrics";
 import { fmt, RoasBadge, Thumb } from "@/features/results/components";
+import { BudgetValue, DeliveryToggle, useMetaControls } from "@/features/meta/controls";
 
 export const DELIVERY_LABELS: Record<string, string> = {
   ACTIVE: "Ativo",
@@ -205,6 +206,11 @@ export function CampaignTree({
     [nodes],
   );
   const anyOpen = open.size > 0;
+  // Coluna de orçamento só depois da primeira sincronização que traz orçamentos.
+  const showBudget = useMemo(
+    () => nodes.some((c) => c.budget || c.children.some((a) => a.budget)),
+    [nodes],
+  );
 
   const headerSort = (key: ColumnKey) =>
     setSort((s) =>
@@ -282,17 +288,28 @@ export function CampaignTree({
       {/* Celular: cartões expansíveis com as métricas que decidem (gasto, faturamento, ROAS…). */}
       <ul className="divide-y divide-border md:hidden">
         {visible.map((c) => (
-          <MobileNode key={c.id} node={c} depth={0} isOpen={isOpen} toggle={toggle} ctx={ctx} />
+          <MobileNode
+            key={c.id}
+            node={c}
+            ancestors={[]}
+            depth={0}
+            isOpen={isOpen}
+            toggle={toggle}
+            ctx={ctx}
+          />
         ))}
       </ul>
 
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[1040px] text-sm">
+        <table className="w-full min-w-[1160px] text-sm">
           <thead>
             <tr className="border-b border-border text-xs text-muted-foreground">
               <th className="sticky left-0 z-10 min-w-64 bg-surface px-4 py-2.5 text-left font-medium">
                 Nome
               </th>
+              {showBudget && (
+                <th className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Orçamento</th>
+              )}
               {COLUMNS.map((c) => {
                 const active = sort.key === c.key;
                 const Icon = sort.dir === "asc" ? ArrowUp : ArrowDown;
@@ -326,6 +343,8 @@ export function CampaignTree({
               <DesktopRows
                 key={c.id}
                 node={c}
+                ancestors={[]}
+                showBudget={showBudget}
                 depth={0}
                 isOpen={isOpen}
                 toggle={toggle}
@@ -345,6 +364,7 @@ export function CampaignTree({
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </td>
+                {showBudget && <td />}
                 {COLUMNS.map((c) => (
                   <td key={c.key} className="px-3 py-2.5 text-right tabular-nums">
                     {c.key === "sales"
@@ -360,6 +380,7 @@ export function CampaignTree({
               <td className="sticky left-0 z-10 bg-surface px-4 py-3 text-foreground">
                 Total no período
               </td>
+              {showBudget && <td />}
               {COLUMNS.map((c) => (
                 <td
                   key={c.key}
@@ -390,6 +411,8 @@ export function CampaignTree({
 
 type NodeProps = {
   node: TreeNode;
+  /** Campanha e conjunto acima (para avisar se um pai está pausado). */
+  ancestors: TreeNode[];
   depth: number;
   isOpen: (id: string) => boolean;
   toggle: (id: string) => void;
@@ -398,15 +421,23 @@ type NodeProps = {
 
 function NodeName({
   node,
+  ancestors,
   expandable,
   open,
   onToggle,
 }: {
   node: TreeNode;
+  ancestors: TreeNode[];
   expandable: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
+  const controls = useMetaControls();
+  // Ligado na Meta, mas sem entregar (pai pausado, em análise...): mostra o motivo.
+  const reason =
+    node.configuredStatus === "ACTIVE" && node.status && node.status !== "ACTIVE"
+      ? (DELIVERY_LABELS[node.status] ?? node.status)
+      : null;
   return (
     <div className="flex min-w-0 items-center gap-2">
       {expandable ? (
@@ -424,8 +455,12 @@ function NodeName({
       ) : (
         <span className="w-6 shrink-0" />
       )}
+      {controls ? (
+        <DeliveryToggle node={node} ancestors={ancestors} />
+      ) : (
+        <StatusDot status={node.status} />
+      )}
       {node.level === "ad" && <Thumb src={node.thumbnailUrl} alt="" size="sm" />}
-      <StatusDot status={node.status} />
       <div className="min-w-0">
         <p
           className={cn("truncate text-foreground", node.level === "campaign" && "font-medium")}
@@ -433,9 +468,15 @@ function NodeName({
         >
           {node.name}
         </p>
-        {node.level !== "campaign" && (
+        {(node.level !== "campaign" || reason) && (
           <p className="text-[11px] leading-4 text-muted-foreground">
-            {LEVEL_LABELS[node.level]}
+            {node.level !== "campaign" && LEVEL_LABELS[node.level]}
+            {reason && (
+              <>
+                {node.level !== "campaign" && " · "}
+                <span className="whitespace-nowrap text-warning-strong">{reason}</span>
+              </>
+            )}
             {node.level === "ad" && node.previewLink && (
               <>
                 {" · "}
@@ -457,7 +498,15 @@ function NodeName({
   );
 }
 
-function DesktopRows({ node, depth, isOpen, toggle, ctx }: NodeProps) {
+function DesktopRows({
+  node,
+  ancestors,
+  depth,
+  isOpen,
+  toggle,
+  ctx,
+  showBudget,
+}: NodeProps & { showBudget: boolean }) {
   const open = isOpen(node.id);
   const expandable = node.children.length > 0;
   return (
@@ -477,11 +526,17 @@ function DesktopRows({ node, depth, isOpen, toggle, ctx }: NodeProps) {
         >
           <NodeName
             node={node}
+            ancestors={ancestors}
             expandable={expandable}
             open={open}
             onToggle={() => toggle(node.id)}
           />
         </td>
+        {showBudget && (
+          <td className="whitespace-nowrap px-3 py-2 text-right text-sm">
+            <BudgetValue node={node} />
+          </td>
+        )}
         {COLUMNS.map((c) => (
           <td
             key={c.key}
@@ -496,6 +551,8 @@ function DesktopRows({ node, depth, isOpen, toggle, ctx }: NodeProps) {
           <DesktopRows
             key={child.id}
             node={child}
+            ancestors={[...ancestors, node]}
+            showBudget={showBudget}
             depth={depth + 1}
             isOpen={isOpen}
             toggle={toggle}
@@ -506,7 +563,7 @@ function DesktopRows({ node, depth, isOpen, toggle, ctx }: NodeProps) {
   );
 }
 
-function MobileNode({ node, depth, isOpen, toggle, ctx }: NodeProps) {
+function MobileNode({ node, ancestors, depth, isOpen, toggle, ctx }: NodeProps) {
   const open = isOpen(node.id);
   const expandable = node.children.length > 0;
   const m = node.metrics;
@@ -543,10 +600,16 @@ function MobileNode({ node, depth, isOpen, toggle, ctx }: NodeProps) {
       >
         <NodeName
           node={node}
+          ancestors={ancestors}
           expandable={expandable}
           open={open}
           onToggle={() => toggle(node.id)}
         />
+        {node.level !== "ad" && (node.budget || node.usesCampaignBudget) && (
+          <p className="mt-1.5 flex items-center gap-1.5 pl-8 text-xs text-muted-foreground">
+            Orçamento <BudgetValue node={node} compact />
+          </p>
+        )}
         <dl className="mt-2.5 grid grid-cols-3 gap-x-3 gap-y-2 pl-8">
           {cells.map(([label, value]) => (
             <div key={label} className="min-w-0">
@@ -568,6 +631,7 @@ function MobileNode({ node, depth, isOpen, toggle, ctx }: NodeProps) {
             <MobileNode
               key={child.id}
               node={child}
+              ancestors={[...ancestors, node]}
               depth={depth + 1}
               isOpen={isOpen}
               toggle={toggle}

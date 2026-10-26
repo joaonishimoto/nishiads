@@ -18,7 +18,8 @@ import { createAdminClient } from "../_shared/supabase-admin.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
-const SCOPES = ["ads_read", "business_management"];
+// ads_management libera pausar, ativar e mudar orçamento pelo app (meta-actions).
+const SCOPES = ["ads_read", "ads_management", "business_management"];
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
