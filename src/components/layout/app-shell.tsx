@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router";
 import {
   BookOpen,
   Bell,
+  BellRing,
   ChartNoAxesCombined,
   ChevronLeft,
   LayoutDashboard,
@@ -27,11 +28,13 @@ import {
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
+import { usePendingAlertsCount } from "@/features/alerts/api";
 
 // Mesma casca do Nishistack: sidebar azul que recolhe e expande, topo com a conta e,
 // no celular, barra de abas com "Mais" abrindo o menu completo.
 
-type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
+/** badge: alertas esperando aprovação. */
+type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean; badge?: number };
 type NavGroup = { label: string; items: NavItem[] };
 
 function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; base: string } {
@@ -40,12 +43,14 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
   const overview: NavItem = { to: base, label: "Visão geral", icon: LayoutDashboard, end: true };
   const sales: NavItem = { to: `${base}/vendas`, label: "Vendas", icon: Receipt };
   const campaigns: NavItem = { to: `${base}/campanhas`, label: "Campanhas", icon: ChartNoAxesCombined };
+  const pending = usePendingAlertsCount(workspace.id).data ?? 0;
+  const alerts: NavItem = { to: `${base}/alertas`, label: "Alertas", icon: BellRing, badge: pending };
   const integrations: NavItem = { to: `${base}/integracoes`, label: "Integrações", icon: Plug };
   return {
     base,
     groups: [
       { label: "", items: [overview] },
-      { label: "Resultados", items: [sales, campaigns] },
+      { label: "Resultados", items: [sales, campaigns, alerts] },
       {
         label: "Recursos",
         items: [integrations, { to: `${base}/ajuda`, label: "Documentação", icon: BookOpen }],
@@ -53,7 +58,8 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
     ],
     /** Fica no pé da sidebar, separado das áreas de trabalho. */
     footer: [{ to: `${base}/ajustes`, label: "Ajustes", icon: Settings }],
-    tabs: [{ ...overview, label: "Início" }, sales, campaigns, integrations],
+    // Integrações (configurada uma vez) fica no "Mais"; alertas pedem resposta no dia a dia.
+    tabs: [{ ...overview, label: "Início" }, sales, campaigns, alerts],
   };
 }
 
@@ -154,6 +160,19 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
         >
           {item.label}
         </span>
+        {!!item.badge && (
+          <span
+           
+            className={cn(
+              "rounded-full bg-warning font-semibold tabular-nums text-warning-foreground",
+              collapsed
+                ? "absolute right-1 top-1 h-2.5 w-2.5 overflow-hidden text-[0px]"
+                : "ml-auto min-w-5 px-1.5 text-center text-[11px] leading-5",
+            )}
+          >
+            {item.badge > 99 ? "99+" : item.badge}
+          </span>
+        )}
       </NavLink>
     </li>
   );
@@ -186,7 +205,17 @@ function MobileTabBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
               aria-current={active ? "page" : undefined}
               className={cn(item, active ? cn("text-primary", marker) : "text-muted-foreground")}
             >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2 : 1.75} />
+              <span className="relative">
+                <Icon className="h-5 w-5" strokeWidth={active ? 2 : 1.75} />
+                {!!tab.badge && (
+                  <span
+                   
+                    className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-warning px-1 text-center text-[10px] font-semibold leading-4 tabular-nums text-warning-foreground"
+                  >
+                    {tab.badge > 9 ? "9+" : tab.badge}
+                  </span>
+                )}
+              </span>
               <span className="truncate">{tab.label}</span>
             </Link>
           );
