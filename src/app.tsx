@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ChartNoAxesCombined } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
@@ -20,7 +19,7 @@ import { IntegrationsPage } from "@/features/integrations/pages/integrations-pag
 import { WebhookLogsPage } from "@/features/integrations/pages/webhook-logs-page";
 import { HelpPage } from "@/features/help/help-page";
 import { OverviewPage } from "@/pages/overview";
-import { ComingSoonPage } from "@/pages/coming-soon";
+import { CampaignsPage } from "@/features/meta/campaigns-page";
 import { NotFoundPage } from "@/pages/not-found";
 import { ConfigErrorPage } from "@/pages/config-error";
 import { env } from "@/lib/env";
@@ -49,17 +48,7 @@ const router = createBrowserRouter([
               { index: true, element: <OverviewPage /> },
               { path: "vendas", element: <SalesPage /> },
               { path: "vendas/:saleId", element: <SaleDetailPage /> },
-              {
-                path: "campanhas",
-                element: (
-                  <ComingSoonPage
-                    title="Campanhas"
-                    subtitle="ROAS, CPA e lucro por campanha, conjunto e criativo."
-                    icon={ChartNoAxesCombined}
-                    description="Chega nas etapas 4 e 5: conexão com a Meta Ads e dashboard."
-                  />
-                ),
-              },
+              { path: "campanhas", element: <CampaignsPage /> },
               { path: "integracoes", element: <IntegrationsPage /> },
               { path: "integracoes/logs", element: <WebhookLogsPage /> },
               { path: "ajuda", element: <HelpPage /> },

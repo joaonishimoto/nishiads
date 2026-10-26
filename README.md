@@ -9,9 +9,9 @@ Vendas de infoprodutos e e-commerce atribuídas à **campanha, conjunto e criati
 | # | Etapa | Status |
 |---|-------|--------|
 | 1 | Schema + RLS + auth + workspaces | ✅ |
-| 2 | Webhook de venda (1º provedor) + atribuição por UTM + tela de vendas | ⏳ |
-| 3 | Notificações Web Push | |
-| 4 | Meta OAuth + sincronização de estrutura e insights | |
+| 2 | Webhook de venda (1º provedor) + atribuição por UTM + tela de vendas | ✅ |
+| 3 | Notificações Web Push | ✅ |
+| 4 | Meta OAuth + sincronização de estrutura e insights | ✅ |
 | 5 | Dashboard (ROAS, CPA, lucro por campanha/conjunto/criativo) | |
 | 6 | Script de rastreamento + onboarding | |
 | 7 | Demais checkouts + bot do Telegram | |
@@ -43,6 +43,10 @@ No painel do Supabase → **Authentication → URL Configuration**, adicione a U
 | Supabase › Edge Functions › Secrets | `VAPID_PUBLIC_KEY` | chave pública VAPID (Web Push); o app busca pela função `push` |
 | Supabase › Edge Functions › Secrets | `VAPID_PRIVATE_KEY` | chave privada VAPID |
 | Supabase › Edge Functions › Secrets | `VAPID_SUBJECT` | contato do remetente (`https://...` ou `mailto:...`) |
+| Supabase › Edge Functions › Secrets | `META_APP_ID` | ID do app da Meta |
+| Supabase › Edge Functions › Secrets | `META_APP_SECRET` | chave secreta do app (troca do código e `appsecret_proof`) |
+| Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas*; sem ele, usa `scope=ads_read,business_management` |
+| Supabase › Edge Functions › Secrets | `APP_URL` | opcional: origens aceitas na volta do login, separadas por vírgula (padrão `https://nishiads.areadeteste.com,http://localhost:5173`) |
 
 Segredos (token da Meta, segredos de webhook, chave VAPID privada) **nunca** vão para o frontend: ficam no Supabase Vault e nos secrets das Edge Functions.
 
@@ -75,6 +79,17 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 - A criptografia do payload (RFC 8291) e o JWT VAPID são feitos com Web Crypto, sem dependências, e testados com o vetor oficial da RFC.
 - No iPhone, o push só funciona com o app instalado na Tela de Início (iOS 16.4+).
 
+## Meta Ads
+
+- **Conectar:** Integrações › Meta Ads › Conectar. A função `meta-oauth` gera um `state` de uso único (15 min), abre o login da Meta e recebe o retorno em `/functions/v1/meta-oauth/callback`. Lá troca o código por token, converte para **longa duração** (~60 dias), guarda no Vault (`meta_connections.token_ref`) e lista as contas de anúncio. O token nunca passa pelo navegador.
+- **Escolher contas:** a chave "Acompanhar" liga a conta (`ad_accounts.is_tracked`) e já dispara o backfill de 30 dias.
+- **Sincronização** (`meta-sync`): pg_cron a cada 15 min e o botão *Sincronizar agora*. Para cada conta: dados da conta, campanhas, conjuntos, anúncios (thumbnail 320px do criativo, link de prévia) e insights em `level=ad`, `time_increment=1`. Refaz os últimos 3 dias (a Meta ajusta os números) e faz backfill de 30 dias na primeira vez, em janelas de 10 dias. Depois refaz a atribuição das vendas ainda não casadas.
+- **Rate limit:** lê `x-business-use-case-usage`, `x-ad-account-usage` e `x-app-usage`; desacelera acima de 75% e pausa a conta acima de 90% ou nos erros 4/17/32/613/80000+, até o tempo que a Meta informa (mínimo 10 min).
+- **Erros:** retry com backoff (2s, 4s, 8s) em erro transitório; token expirado/revogado (190, 102, subcodes 458–467) marca a conexão e as contas como *Reconectar* e manda push para owners/admins. O app avisa 7 dias antes do token expirar.
+- **Versão da API:** `GRAPH_API_VERSION` em `supabase/functions/_shared/meta/graph.ts`, a única ocorrência.
+- **Uma execução por conta:** `service_claim_ad_account_sync` trava a conta; trava com mais de 10 min é retomada.
+- **Agendar o cron** (uma vez, no SQL Editor): `select private.schedule_meta_sync('https://<ref>.supabase.co');`. Cria o segredo `nishiads_cron_secret` no Vault, que o job manda no header `x-cron-secret`.
+
 ## Testes
 
 ```bash
@@ -94,7 +109,7 @@ psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls_test.sql
 Todo dado pertence a um `workspace`; o usuário pode estar em vários, com papel `owner`, `admin` ou `viewer`.
 
 - **Tenancy:** `profiles`, `workspaces`, `workspace_members`, `workspace_invitations`
-- **Anúncios:** `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert)
+- **Anúncios:** `meta_connections` (token no Vault), `ad_accounts`, `campaigns`, `adsets`, `ads`, `ad_insights_daily` (PK `(ad_id, date)` para upsert)
 - **Vendas:** `checkout_integrations`, `products`, `sales` (único em `(workspace_id, provider, external_order_id)`), `webhook_events`
 - **Notificações:** `notification_subscriptions`, `notification_preferences`
 

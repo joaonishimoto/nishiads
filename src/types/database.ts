@@ -9,6 +9,7 @@ type Timestamps = { created_at: string; updated_at: string };
 export type WorkspaceRole = "owner" | "admin" | "viewer";
 export type AdPlatform = "meta";
 export type AdAccountStatus = "active" | "needs_reconnect" | "disabled" | "error";
+export type MetaConnectionStatus = "active" | "needs_reconnect";
 export type CheckoutProvider = "kiwify" | "hotmart" | "stripe" | "eduzz" | "generic";
 export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "canceled";
 export type AttributionStatus = "matched" | "partial" | "unattributed";
@@ -56,6 +57,22 @@ type AdAccountRow = Timestamps & {
   last_synced_at: string | null;
   last_sync_error: string | null;
   backfilled_at: string | null;
+  connected_by: string | null;
+  meta_connection_id: string | null;
+  sync_started_at: string | null;
+  rate_limited_until: string | null;
+};
+
+type MetaConnectionRow = Timestamps & {
+  id: string;
+  workspace_id: string;
+  meta_user_id: string;
+  meta_user_name: string | null;
+  token_ref: string | null;
+  token_expires_at: string | null;
+  scopes: string[];
+  status: MetaConnectionStatus;
+  last_error: string | null;
   connected_by: string | null;
 };
 
@@ -223,6 +240,7 @@ export type Database = {
       >;
       workspace_invitations: Table<WorkspaceInvitationRow, "workspace_id" | "email">;
       ad_accounts: Table<AdAccountRow, "workspace_id" | "external_id" | "name">;
+      meta_connections: Table<MetaConnectionRow, "workspace_id" | "meta_user_id">;
       campaigns: Table<CampaignRow, "workspace_id" | "ad_account_id" | "external_id" | "name">;
       adsets: Table<AdsetRow, "workspace_id" | "ad_account_id" | "campaign_id" | "external_id" | "name">;
       ads: Table<
@@ -312,6 +330,10 @@ export type Database = {
         };
         Returns: CheckoutIntegrationRow;
       };
+      disconnect_meta_connection: {
+        Args: { p_connection_id: string };
+        Returns: undefined;
+      };
       reattribute_sales: {
         Args: { p_workspace_id: string };
         Returns: number;
@@ -335,6 +357,7 @@ export type Database = {
       workspace_role: WorkspaceRole;
       ad_platform: AdPlatform;
       ad_account_status: AdAccountStatus;
+      meta_connection_status: MetaConnectionStatus;
       checkout_provider: CheckoutProvider;
       sale_status: SaleStatus;
       attribution_status: AttributionStatus;

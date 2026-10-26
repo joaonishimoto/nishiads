@@ -31,6 +31,7 @@ import { CopyField } from "@/components/app/copy-field";
 import { FormField } from "@/components/app/form-field";
 import { EmptyState, LoadError, PageHeader, PageSkeleton, Panel, Status } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
+import { MetaAdsPanel } from "@/features/meta/meta-ads-panel";
 import {
   useCreateIntegration,
   useDeleteIntegration,
@@ -63,7 +64,7 @@ export function IntegrationsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Integrações"
-        subtitle="Checkouts que enviam as vendas e os parâmetros para os anúncios."
+        subtitle="Meta Ads, checkouts que enviam as vendas e os parâmetros para os anúncios."
         actions={
           <>
             <Button variant="outline" asChild>
@@ -89,6 +90,8 @@ export function IntegrationsPage() {
           </>
         }
       />
+
+      <MetaAdsPanel />
 
       {integrations.isPending ? (
         <PageSkeleton rows={2} />
