@@ -18,6 +18,7 @@ import { SalesPage } from "@/features/sales/pages/sales-page";
 import { SaleDetailPage } from "@/features/sales/pages/sale-detail-page";
 import { IntegrationsPage } from "@/features/integrations/pages/integrations-page";
 import { WebhookLogsPage } from "@/features/integrations/pages/webhook-logs-page";
+import { HelpPage } from "@/features/help/help-page";
 import { OverviewPage } from "@/pages/overview";
 import { ComingSoonPage } from "@/pages/coming-soon";
 import { NotFoundPage } from "@/pages/not-found";
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
               },
               { path: "integracoes", element: <IntegrationsPage /> },
               { path: "integracoes/logs", element: <WebhookLogsPage /> },
+              { path: "ajuda", element: <HelpPage /> },
               { path: "ajustes", element: <WorkspaceSettingsPage /> },
               { path: "ajustes/membros", element: <MembersPage /> },
               { path: "ajustes/notificacoes", element: <NotificationsPage /> },

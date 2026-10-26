@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router";
-import { ChartNoAxesCombined, LayoutDashboard, Plug, Receipt, Settings, type LucideIcon } from "lucide-react";
+import { BookOpen, ChartNoAxesCombined, LayoutDashboard, Plug, Receipt, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo, BrandMark } from "@/components/app/brand-logo";
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
@@ -22,6 +22,7 @@ function useNavItems(): NavItem[] {
 /** Desktop: barra lateral azul. Celular: topo com workspace e barra de abas embaixo. */
 export function AppShell() {
   const items = useNavItems();
+  const { workspace } = useWorkspace();
 
   return (
     <div className="min-h-dvh bg-background">
@@ -52,6 +53,22 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
+        <div className="px-3 pb-4">
+          <NavLink
+            to={`/w/${workspace.id}/ajuda`}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground",
+              )
+            }
+          >
+            <BookOpen className="h-4 w-4 shrink-0" aria-hidden />
+            Documentação
+          </NavLink>
+        </div>
       </aside>
 
       <header className="sticky top-0 z-navigation flex h-14 items-center gap-3 border-b border-border bg-surface/95 px-4 backdrop-blur lg:hidden">

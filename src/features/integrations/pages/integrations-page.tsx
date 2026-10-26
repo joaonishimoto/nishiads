@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
-import { AlertTriangle, Check, Copy, KeyRound, ListChecks, Plug, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, BookOpen, Check, Copy, KeyRound, ListChecks, Plug, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -66,6 +66,12 @@ export function IntegrationsPage() {
         subtitle="Checkouts que enviam as vendas e os parâmetros para os anúncios."
         actions={
           <>
+            <Button variant="outline" asChild>
+              <Link to={`/w/${workspace.id}/ajuda`}>
+                <BookOpen />
+                Documentação
+              </Link>
+            </Button>
             {canManage && (
               <Button variant="outline" asChild>
                 <Link to={`/w/${workspace.id}/integracoes/logs`}>
@@ -111,7 +117,7 @@ export function IntegrationsPage() {
 
       <Panel
         title="Como conectar uma conta"
-        description="Vale para a primeira conta e para as próximas. Cada conta de checkout é uma integração, com URL e chaves próprias."
+        description="Vale para a primeira conta e para as próximas. Cada conta de checkout é uma integração, com URL e chaves próprias. Para as UTMs chegarem ao checkout, veja a Documentação."
       >
         <div className="space-y-3 p-4">
           {AVAILABLE_PROVIDERS.map((provider) => (
