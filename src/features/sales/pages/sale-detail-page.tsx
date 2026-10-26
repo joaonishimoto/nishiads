@@ -53,6 +53,7 @@ export function SaleDetailPage() {
 
   const s = sale.data;
   const status = SALE_STATUS_META[s.status];
+  const isTrial = s.status === "trialing";
   const attribution = ATTRIBUTION_META[s.attribution_status];
   const levels = [
     { label: "Campanha", record: s.campaign, utm: s.utm_campaign },
@@ -73,11 +74,11 @@ export function SaleDetailPage() {
             {s.product_name ?? "Produto sem nome"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {PROVIDER_LABELS[s.provider] ?? s.provider} · pedido {s.external_order_id}
+            {PROVIDER_LABELS[s.provider] ?? s.provider} · {isTrial ? "assinatura" : "pedido"} {s.external_order_id}
           </p>
         </div>
         <p className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">
-          {formatMoney(s.gross_amount_cents, s.currency)}
+          {isTrial ? (s.trial_converted_at ? "Pagou" : "Em teste") : formatMoney(s.gross_amount_cents, s.currency)}
         </p>
       </header>
 
@@ -126,14 +127,38 @@ export function SaleDetailPage() {
       </Panel>
 
       <Panel title="Detalhes">
-        <dl className="divide-y divide-border">
-          <Row label="Valor bruto">{formatMoney(s.gross_amount_cents, s.currency)}</Row>
-          <Row label="Valor líquido">{s.net_amount_cents === null ? null : formatMoney(s.net_amount_cents, s.currency)}</Row>
-          <Row label="Pago em">{s.paid_at ? formatDateTime(s.paid_at, workspace.timezone) : null}</Row>
-          {s.refunded_at && <Row label="Reembolsado em">{formatDateTime(s.refunded_at, workspace.timezone)}</Row>}
-          <Row label="Recebido em">{formatDateTime(s.created_at, workspace.timezone)}</Row>
-          <Row label="Integração">{s.integration?.name ?? null}</Row>
-        </dl>
+        {isTrial ? (
+          <dl className="divide-y divide-border">
+            <Row label="Teste iniciado em">{formatDateTime(s.created_at, workspace.timezone)}</Row>
+            <Row label="Primeira cobrança">
+              {s.trial_converted_at ? (
+                <>
+                  {formatDateTime(s.trial_converted_at, workspace.timezone)}
+                  {s.converted_sale_id && (
+                    <Link
+                      to={`/w/${workspace.id}/vendas/${s.converted_sale_id}`}
+                      className="ml-2 font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Ver venda
+                    </Link>
+                  )}
+                </>
+              ) : (
+                "Ainda não. O teste vira venda quando a primeira fatura for paga."
+              )}
+            </Row>
+            <Row label="Integração">{s.integration?.name ?? null}</Row>
+          </dl>
+        ) : (
+          <dl className="divide-y divide-border">
+            <Row label="Valor bruto">{formatMoney(s.gross_amount_cents, s.currency)}</Row>
+            <Row label="Valor líquido">{s.net_amount_cents === null ? null : formatMoney(s.net_amount_cents, s.currency)}</Row>
+            <Row label="Pago em">{s.paid_at ? formatDateTime(s.paid_at, workspace.timezone) : null}</Row>
+            {s.refunded_at && <Row label="Reembolsado em">{formatDateTime(s.refunded_at, workspace.timezone)}</Row>}
+            <Row label="Recebido em">{formatDateTime(s.created_at, workspace.timezone)}</Row>
+            <Row label="Integração">{s.integration?.name ?? null}</Row>
+          </dl>
+        )}
       </Panel>
 
       <Panel title="UTMs recebidos">

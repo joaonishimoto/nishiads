@@ -10,7 +10,7 @@ export type WorkspaceRole = "owner" | "admin" | "viewer";
 export type AdPlatform = "meta";
 export type AdAccountStatus = "active" | "needs_reconnect" | "disabled" | "error";
 export type CheckoutProvider = "kiwify" | "hotmart" | "stripe" | "eduzz" | "generic";
-export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "canceled";
+export type SaleStatus = "approved" | "pending" | "refunded" | "chargeback" | "canceled" | "trialing";
 export type AttributionStatus = "matched" | "partial" | "unattributed";
 export type NotificationChannel = "webpush" | "telegram";
 export type WebhookEventStatus = "received" | "processed" | "ignored" | "rejected" | "failed";
@@ -144,6 +144,10 @@ type SaleRow = Timestamps & {
   attribution_status: AttributionStatus;
   paid_at: string | null;
   refunded_at: string | null;
+  /** Teste: quando a primeira cobrança paga chegou. */
+  trial_converted_at: string | null;
+  /** Teste: a venda aprovada em que ele se converteu. */
+  converted_sale_id: string | null;
   raw_payload: Json;
 };
 

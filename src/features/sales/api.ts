@@ -17,7 +17,7 @@ export type SalesFilters = {
 
 const SALE_LIST_COLUMNS =
   "id, provider, external_order_id, status, gross_amount_cents, net_amount_cents, currency, product_name, " +
-  "utm_source, utm_medium, utm_campaign, utm_content, utm_term, attribution_status, paid_at, created_at, " +
+  "utm_source, utm_medium, utm_campaign, utm_content, utm_term, attribution_status, paid_at, created_at, trial_converted_at, " +
   "campaign:campaigns(id, name), adset:adsets(id, name), ad:ads(id, name, thumbnail_url)";
 
 export type SaleListItem = Pick<
@@ -38,6 +38,7 @@ export type SaleListItem = Pick<
   | "attribution_status"
   | "paid_at"
   | "created_at"
+  | "trial_converted_at"
 > & {
   campaign: { id: string; name: string } | null;
   adset: { id: string; name: string } | null;
@@ -89,9 +90,18 @@ export type SalesSummary = {
   refundCount: number;
   matchedShare: number | null;
   unmatchedCount: number;
+  trialCount: number;
+  /** Testes do período que já tiveram a primeira cobrança. */
+  trialConvertedCount: number;
 };
 
-type SummaryRow = { status: SaleStatus; gross_amount_cents: number; attribution_status: AttributionStatus; currency: string };
+type SummaryRow = {
+  status: SaleStatus;
+  gross_amount_cents: number;
+  attribution_status: AttributionStatus;
+  currency: string;
+  trial_converted_at: string | null;
+};
 
 /** KPIs do período. Lê só colunas leves, em páginas de 1000 (limite do PostgREST). */
 export function useSalesSummary(workspaceId: string, range: DateRange, currency: string) {
@@ -102,7 +112,7 @@ export function useSalesSummary(workspaceId: string, range: DateRange, currency:
       for (let page = 0; ; page++) {
         let query = supabase
           .from("sales")
-          .select("status, gross_amount_cents, attribution_status, currency")
+          .select("status, gross_amount_cents, attribution_status, currency, trial_converted_at")
           .eq("workspace_id", workspaceId);
         query = applyRange(query, range);
         const { data, error } = await query.order("id").range(page * 1000, page * 1000 + 999);
@@ -111,6 +121,7 @@ export function useSalesSummary(workspaceId: string, range: DateRange, currency:
         if (!data || data.length < 1000) break;
       }
       const approved = rows.filter((r) => r.status === "approved");
+      const trials = rows.filter((r) => r.status === "trialing");
       const matched = approved.filter((r) => r.attribution_status === "matched").length;
       return {
         approvedCount: approved.length,
@@ -121,6 +132,8 @@ export function useSalesSummary(workspaceId: string, range: DateRange, currency:
         refundCount: rows.filter((r) => r.status === "refunded" || r.status === "chargeback").length,
         matchedShare: approved.length ? matched / approved.length : null,
         unmatchedCount: rows.filter((r) => r.attribution_status !== "matched").length,
+        trialCount: trials.length,
+        trialConvertedCount: trials.filter((r) => r.trial_converted_at).length,
       };
     },
   });

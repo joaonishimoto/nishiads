@@ -7,6 +7,7 @@ export const SALE_STATUS_META: Record<SaleStatus, { label: string; tone: Tone }>
   refunded: { label: "Reembolsada", tone: "neutral" },
   chargeback: { label: "Chargeback", tone: "danger" },
   canceled: { label: "Recusada", tone: "neutral" },
+  trialing: { label: "Teste iniciado", tone: "accent" },
 };
 
 export const ATTRIBUTION_META: Record<AttributionStatus, { label: string; tone: Tone; description: string }> = {

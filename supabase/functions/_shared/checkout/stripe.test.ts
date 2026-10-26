@@ -101,12 +101,76 @@ describe("Stripe: normalização", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("ignora fatura de valor zero e Checkout Session de assinatura", async () => {
+  it("ignora Checkout Session de assinatura com cobrança e fatura zerada de renovação", async () => {
+    const session = event("checkout.session.completed", {
+      id: "cs_1",
+      mode: "subscription",
+      payment_status: "paid",
+      amount_total: 7800,
+      subscription: "sub_1",
+    });
+    expect((await stripeAdapter.normalize(session, { secret: SECRET })).kind).toBe("ignored");
     const payload = JSON.parse(invoicePaid);
     payload.data.object.amount_paid = 0;
+    payload.data.object.billing_reason = "subscription_cycle";
     expect((await stripeAdapter.normalize(payload, { secret: SECRET })).kind).toBe("ignored");
-    const session = event("checkout.session.completed", { id: "cs_1", mode: "subscription" });
-    expect((await stripeAdapter.normalize(session, { secret: SECRET })).kind).toBe("ignored");
+  });
+
+  it("checkout de assinatura sem cobrança vira teste iniciado, com as UTMs da sessão", async () => {
+    mockStripeApi({
+      "/v1/checkout/sessions/cs_trial/line_items": { data: [{ description: "Drinfy Pro", price: { product: "prod_D" } }] },
+    });
+    const result = await stripeAdapter.normalize(
+      event("checkout.session.completed", {
+        id: "cs_trial",
+        mode: "subscription",
+        payment_status: "no_payment_required",
+        amount_total: 0,
+        currency: "brl",
+        subscription: "sub_trial",
+        customer_details: { email: "a@b.com" },
+        metadata: { utm_source: "FB", utm_campaign: "Teste|120200000000000001" },
+      }),
+      { secret: SECRET },
+    );
+    expect(result).toMatchObject({
+      kind: "sale",
+      sale: {
+        external_order_id: "sub_trial",
+        subscription_ref: "sub_trial",
+        status: "trialing",
+        gross_amount_cents: 0,
+        paid_at: null,
+        product_name: "Drinfy Pro",
+        external_product_id: "prod_D",
+        utm_campaign: "Teste|120200000000000001",
+      },
+    });
+  });
+
+  it("primeira fatura zerada da assinatura também abre o teste", async () => {
+    const calls = mockStripeApi({
+      "/v1/checkout/sessions": { data: [{ metadata: { utm_source: "ig" } }] },
+    });
+    const payload = JSON.parse(invoicePaid);
+    payload.data.object.amount_paid = 0;
+    payload.data.object.billing_reason = "subscription_create";
+    const result = await stripeAdapter.normalize(payload, { secret: SECRET });
+    expect(result).toMatchObject({
+      kind: "sale",
+      sale: { external_order_id: "sub_1TesteAssinatura", status: "trialing", utm_source: "ig", paid_at: null },
+    });
+    // Sem cobrança não há pagamento para procurar.
+    expect(calls.some((c) => c.startsWith("/v1/invoice_payments"))).toBe(false);
+  });
+
+  it("fatura paga leva a assinatura para converter o teste", async () => {
+    mockStripeApi({
+      "/v1/invoice_payments": { data: [{ payment: { type: "payment_intent", payment_intent: "pi_123" } }] },
+      "/v1/checkout/sessions": { data: [] },
+    });
+    const result = await stripeAdapter.normalize(JSON.parse(invoicePaid), { secret: SECRET });
+    expect(result.kind === "sale" && result.sale.subscription_ref).toBe("sub_1TesteAssinatura");
   });
 
   it("pagamento avulso pela Checkout Session", async () => {

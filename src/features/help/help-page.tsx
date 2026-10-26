@@ -91,7 +91,7 @@ const SECTIONS = [
   { id: "stripe", title: "2b. Checkout Stripe" },
   { id: "stripe-utms", title: "3. UTMs num checkout próprio (Stripe)" },
   { id: "status", title: "Status de atribuição" },
-  { id: "eventos", title: "Reembolsos, chargebacks e renovações" },
+  { id: "eventos", title: "Reembolsos, chargebacks, renovações e testes" },
   { id: "testar", title: "Como testar" },
   { id: "problemas", title: "Problemas comuns" },
   { id: "checklist", title: "Checklist por conta de checkout" },
@@ -333,7 +333,7 @@ export function HelpPage() {
         </p>
       </Section>
 
-      <Section id="eventos" title="Reembolsos, chargebacks e renovações">
+      <Section id="eventos" title="Reembolsos, chargebacks, renovações e testes">
         <Bullets>
           <li>
             <strong>Reembolso total:</strong> a venda muda para Reembolsada e sai da receita. Reembolso parcial mantém
@@ -344,7 +344,15 @@ export function HelpPage() {
           </li>
           <li>
             <strong>Renovação de assinatura (Stripe):</strong> cada cobrança paga entra como uma venda nova, atribuída
-            ao anúncio da primeira compra. Faturas de valor zero (período de teste) são ignoradas.
+            ao anúncio da primeira compra.
+          </li>
+          <li>
+            <strong>Teste grátis (Stripe):</strong> quando alguém assina com período de teste, entra em Vendas como{" "}
+            <strong>Teste iniciado</strong>, já ligado ao anúncio pelas UTMs do checkout e sem valor (não soma no
+            faturamento). Quando a Stripe cobra a primeira fatura, ela entra como venda aprovada, herda a origem do
+            teste e o teste passa a mostrar “Pagou”. Em Vendas, o card <strong>Testes iniciados</strong> mostra quantos
+            testes começaram no período e quantos já pagaram. Para ver só os testes, filtre o status por Teste
+            iniciado.
           </li>
           <li>
             <strong>Pix e boleto:</strong> entram como Pendente e viram Aprovada quando o pagamento compensa.
@@ -395,8 +403,8 @@ export function HelpPage() {
           </li>
           <li>
             <strong>Evento “Ignorado”:</strong> é normal. Alguns eventos não mudam vendas, como o fim do checkout de
-            uma assinatura na Stripe (a venda entra pelo <C>invoice.paid</C>) ou uma fatura de valor zero. O motivo
-            aparece no log.
+            uma assinatura paga na Stripe (a venda entra pelo <C>invoice.paid</C>) ou uma fatura de valor zero de
+            renovação. O motivo aparece no log. O início de um teste grátis não é ignorado: vira Teste iniciado.
           </li>
           <li>
             <strong>Vendas Sem origem:</strong> os parâmetros não estão no anúncio, a página não repassou as UTMs ou
