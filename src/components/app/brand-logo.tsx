@@ -50,16 +50,19 @@ export function BrandMark({ className }: { className?: string }) {
 export function BrandLogo({
   tone = "positive",
   symbol = true,
+  name = "nishiADS",
   className,
 }: {
   tone?: "positive" | "negative";
   symbol?: boolean;
+  /** Nome escrito ao lado do símbolo (a sidebar usa "Nishistack - ADS"). */
+  name?: string;
   className?: string;
 }) {
   return (
     <span
       role="img"
-      aria-label="nishiADS"
+      aria-label={name}
       className={cn(
         "inline-flex shrink-0 items-center gap-[0.35em] font-brand font-medium",
         tone === "positive" ? "text-brand" : "text-brand-cream",
@@ -68,7 +71,7 @@ export function BrandLogo({
     >
       {symbol && <BrandSymbol />}
       <span aria-hidden className="whitespace-nowrap text-[1.08em] leading-none tracking-[-0.01em]">
-        nishiADS
+        {name}
       </span>
     </span>
   );

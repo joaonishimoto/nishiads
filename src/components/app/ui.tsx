@@ -34,9 +34,9 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="grid min-h-16 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 border-b border-border pb-5 sm:flex sm:min-h-20 sm:items-center sm:justify-between sm:pb-6">
-      <div className="min-w-0 self-center">
-        <h1 className="text-xl font-semibold leading-7 tracking-[-0.015em] text-foreground sm:text-2xl sm:leading-8">
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 pb-1 sm:flex sm:items-end sm:justify-between">
+      <div className="min-w-0 self-center sm:self-end">
+        <h1 className="text-2xl font-bold leading-8 tracking-[-0.025em] text-foreground sm:text-[32px] sm:leading-10">
           {title}
         </h1>
         {subtitle && (
@@ -44,7 +44,7 @@ export function PageHeader({
         )}
       </div>
       {actions && (
-        <div className="col-span-2 flex shrink-0 flex-wrap items-center gap-2 sm:col-span-1 sm:justify-end sm:self-center">
+        <div className="col-span-2 flex shrink-0 flex-wrap items-center gap-1.5 sm:col-span-1 sm:justify-end sm:self-end">
           {actions}
         </div>
       )}
@@ -68,14 +68,14 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface-muted/40 px-6 text-center",
+        "flex flex-col items-center justify-center rounded-xl border border-border bg-surface px-6 text-center",
         compact ? "min-h-40 py-8" : "min-h-64 py-12",
       )}
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface text-primary shadow-xs">
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-primary">
         <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} />
       </span>
-      <h2 className="mt-4 text-sm font-semibold text-foreground">{title}</h2>
+      <h2 className="mt-3 text-sm font-semibold text-foreground">{title}</h2>
       <p className="mt-1 max-w-sm text-sm leading-5 text-muted-foreground">{description}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -95,7 +95,7 @@ export function LoadError({
   return (
     <div
       role="alert"
-      className="flex flex-col gap-3 rounded-md border border-danger/30 bg-danger/10 p-4 text-sm text-danger-strong sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 rounded-lg border border-danger/25 bg-danger/8 p-4 text-sm text-danger-strong sm:flex-row sm:items-center sm:justify-between"
     >
       <p className="min-w-0">{children}</p>
       {onRetry && (
@@ -120,7 +120,7 @@ function SkeletonStatCards({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-4">
       {Array.from({ length: count }, (_, index) => (
-        <div key={index} className="rounded-lg border border-border bg-surface p-4">
+        <div key={index} className="rounded-xl border border-border bg-surface p-4">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="mt-3 h-7 w-32" />
           <Skeleton className="mt-2 h-3 w-20" />
@@ -132,7 +132,7 @@ function SkeletonStatCards({ count = 4 }: { count?: number }) {
 
 function SkeletonPanel({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-border bg-surface", className)}>
+    <div className={cn("overflow-hidden rounded-xl border border-border bg-surface", className)}>
       <div className="border-b border-border px-4 py-3">
         <Skeleton className="h-4 w-36" />
       </div>
@@ -159,11 +159,11 @@ export function PageSkeleton({ variant = "table" }: { variant?: PageSkeletonVari
   const detail = variant === "detail";
   return (
     <div className="flex min-w-0 flex-col gap-6" role="status" aria-label="Carregando conteúdo">
-      <div className="flex min-h-20 items-center justify-between gap-4 border-b border-border pb-6">
+      <div className="flex min-h-12 items-end justify-between gap-4 pb-1">
         <div className="flex min-w-0 items-center gap-3">
           {detail && <Skeleton className="h-8 w-8 shrink-0" />}
           <div className="min-w-0 space-y-2">
-            <Skeleton className="h-7 w-40 max-w-[55vw]" />
+            <Skeleton className="h-9 w-48 max-w-[55vw]" />
             <Skeleton className="h-4 w-72 max-w-[72vw]" />
           </div>
         </div>
@@ -312,8 +312,8 @@ export function PageSkeleton({ variant = "table" }: { variant?: PageSkeletonVari
       )}
 
       {variant === "table" && (
-        <div className="overflow-hidden rounded-lg border border-border bg-surface">
-          <div className="flex items-center justify-between border-b border-border bg-surface-muted px-3 py-2.5">
+        <div className="overflow-hidden rounded-xl border border-border bg-surface">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <Skeleton className="h-8 w-64 max-w-[60vw]" />
             <Skeleton className="h-3 w-16" />
           </div>
@@ -352,9 +352,9 @@ export function Panel({
   action?: ReactNode;
 }) {
   return (
-    <section className={cn("rounded-lg border border-border bg-surface", className)}>
+    <section className={cn("rounded-xl border border-border bg-surface", className)}>
       {title && (
-        <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{title}</h2>
             {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
@@ -369,9 +369,9 @@ export function Panel({
 
 export function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-surface p-3 sm:p-4">
-      <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1.5 text-lg font-semibold tracking-tight text-foreground tabular-nums [overflow-wrap:anywhere] sm:mt-2 sm:text-2xl">
+    <div className="min-w-0 bg-surface px-4 py-3.5">
+      <p className="truncate text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-foreground tabular-nums [overflow-wrap:anywhere] sm:text-[22px] sm:leading-7">
         {value}
       </p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
@@ -380,7 +380,12 @@ export function Kpi({ label, value, hint }: { label: string; value: string; hint
 }
 
 export function KpiGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">{children}</div>;
+  // One strip of numbers split by hairlines (Notion/FreelaPro style) instead of separate cards.
+  return (
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border xl:grid-cols-4">
+      {children}
+    </div>
+  );
 }
 
 export type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
@@ -397,7 +402,7 @@ export function Status({ tone = "neutral", children }: { tone?: Tone; children: 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-medium leading-4 [&_svg]:size-3",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] px-1.5 py-0.5 text-xs font-medium leading-4 [&_svg]:size-3",
         tones[tone],
       )}
     >
@@ -595,7 +600,7 @@ export function DataTable<T extends { id: string }>({
       {(searchText || toolbar || sortable.length > 0) && (
         <div
           className={cn(
-            "flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface-muted px-3 py-2.5",
+            "flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-3 py-2",
             !searchText && !toolbar && "md:hidden",
           )}
         >
@@ -614,7 +619,7 @@ export function DataTable<T extends { id: string }>({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={"Filtrar..."}
-                className="h-8 bg-surface pl-8 pr-8 text-sm"
+                className="h-8 border-transparent bg-surface-muted/70 pl-8 pr-8 text-sm shadow-none hover:border-transparent focus-visible:bg-surface"
               />
               {q && (
                 <button
@@ -739,7 +744,7 @@ export function DataTable<T extends { id: string }>({
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-surface text-left text-xs text-muted-foreground">
+            <tr className="border-b border-border bg-surface text-left text-xs text-muted-foreground [&>th]:font-normal">
               {selection && (
                 <th className="w-10 px-4 py-2">
                   <Checkbox
@@ -832,7 +837,7 @@ export function DataTable<T extends { id: string }>({
                   <td
                     key={c.label}
                     className={cn(
-                      "px-4 py-3 text-foreground",
+                      "px-4 py-2.5 text-foreground",
                       c.align === "right" && "text-right tabular-nums",
                     )}
                   >

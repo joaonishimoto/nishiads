@@ -64,13 +64,13 @@ export function SaleDetailPage() {
   return (
     <div className="space-y-5">
       {back}
-      <header className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-3 pb-1 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Status tone={status.tone}>{status.label}</Status>
             <Status tone={attribution.tone}>{attribution.label}</Status>
           </div>
-          <h1 className="mt-2 text-xl font-semibold tracking-[-0.015em] text-foreground sm:text-2xl">
+          <h1 className="mt-2 text-2xl font-bold leading-8 tracking-[-0.025em] text-foreground [overflow-wrap:anywhere] sm:text-[32px] sm:leading-10">
             {s.product_name ?? "Produto sem nome"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

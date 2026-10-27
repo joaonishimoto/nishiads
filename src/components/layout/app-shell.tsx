@@ -30,7 +30,7 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { usePendingAlertsCount } from "@/features/alerts/api";
 
-// Mesma casca do Nishistack: sidebar azul que recolhe e expande, topo com a conta e,
+// Mesma casca do Nishistack: sidebar clara (estilo Notion) que recolhe e expande, topo com a conta e,
 // no celular, barra de abas com "Mais" abrindo o menu completo.
 
 /** badge: alertas esperando aprovação. */
@@ -42,9 +42,18 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
   const base = `/w/${workspace.id}`;
   const overview: NavItem = { to: base, label: "Visão geral", icon: LayoutDashboard, end: true };
   const dashboard: NavItem = { to: `${base}/dashboard`, label: "Dashboard", icon: Gauge };
-  const campaigns: NavItem = { to: `${base}/campanhas`, label: "Campanhas", icon: ChartNoAxesCombined };
+  const campaigns: NavItem = {
+    to: `${base}/campanhas`,
+    label: "Campanhas",
+    icon: ChartNoAxesCombined,
+  };
   const pending = usePendingAlertsCount(workspace.id).data ?? 0;
-  const alerts: NavItem = { to: `${base}/alertas`, label: "Alertas", icon: BellRing, badge: pending };
+  const alerts: NavItem = {
+    to: `${base}/alertas`,
+    label: "Alertas",
+    icon: BellRing,
+    badge: pending,
+  };
   const integrations: NavItem = { to: `${base}/integracoes`, label: "Integrações", icon: Plug };
   return {
     base,
@@ -69,15 +78,12 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex h-full flex-col">
       <div
-        className={cn(
-          "relative grid h-16 place-items-center border-b border-sidebar-border",
-          collapsed ? "px-0" : "px-[22px]",
-        )}
+        className={cn("relative grid h-12 place-items-center", collapsed ? "px-0" : "px-[18px]")}
       >
         <BrandSymbol
-          title="nishiADS"
+          title="Nishistack - ADS"
           className={cn(
-            "col-start-1 row-start-1 justify-self-center text-[23px] text-brand-cream transition-opacity duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)]",
+            "col-start-1 row-start-1 justify-self-center text-[20px] text-brand transition-opacity duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)]",
             collapsed ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         />
@@ -87,29 +93,31 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
             collapsed ? "pointer-events-none w-0 overflow-hidden opacity-0" : "opacity-100",
           )}
         >
-          <BrandLogo tone="negative" symbol={false} className="text-[23px]" />
+          <BrandLogo name="Nishistack - ADS" className="text-[20px]" />
         </div>
       </div>
 
-      <nav aria-label="Navegação principal" className="flex-1 overflow-y-auto px-3 py-4">
+      <nav aria-label="Navegação principal" className="flex-1 overflow-y-auto px-2 pt-2 pb-4">
         {groups.map((group, index) => (
           <div
             key={group.label || "inicio"}
-            className={cn(index > 0 && (collapsed ? "mt-3 border-t border-sidebar-border pt-3" : "mt-6"))}
+            className={cn(
+              index > 0 && (collapsed ? "mt-2 border-t border-sidebar-border pt-2" : "mt-5"),
+            )}
           >
             {group.label && (
               <p
                 className={cn(
-                  "px-2.5 text-xs font-medium text-sidebar-muted transition-all duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)]",
+                  "px-2 text-xs font-medium text-sidebar-muted transition-all duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)]",
                   collapsed
                     ? "mb-0 h-0 -translate-y-1 overflow-hidden opacity-0"
-                    : "mb-1.5 h-4 translate-y-0 opacity-100",
+                    : "mb-1 h-4 translate-y-0 opacity-100",
                 )}
               >
                 {group.label}
               </p>
             )}
-            <ul className="space-y-1">
+            <ul className="space-y-px">
               {group.items.map((item) => (
                 <SidebarLink key={item.to} item={item} collapsed={collapsed} />
               ))}
@@ -118,8 +126,8 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
         ))}
       </nav>
 
-      <div className="border-t border-sidebar-border px-3 py-3">
-        <ul className="space-y-1">
+      <div className="border-t border-sidebar-border px-2 py-2">
+        <ul className="space-y-px">
           {footer.map((item) => (
             <SidebarLink key={item.to} item={item} collapsed={collapsed} />
           ))}
@@ -139,39 +147,46 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
         title={collapsed ? item.label : undefined}
         className={({ isActive }) =>
           cn(
-            "relative flex items-center rounded-lg text-[15px] font-medium transition-[background-color,color,gap] duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-indicator",
-            collapsed ? "mx-auto h-10 w-10 justify-center gap-0 p-0" : "gap-3 px-2.5 py-2",
-            // O hover só realça a linha; a barrinha creme marca a área atual.
+            "relative flex items-center rounded-md text-sm transition-[background-color,color,gap] duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-10",
+            collapsed ? "mx-auto h-9 w-9 justify-center gap-0 p-0" : "h-8 gap-2.5 px-2",
+            // Trilho no estilo Notion: azul claro marca a área atual, o hover é o azul mais leve.
             isActive
-              ? cn(
-                  "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:w-[3px] before:rounded-r-full before:bg-sidebar-indicator",
-                  collapsed ? "before:-left-[18px]" : "before:-left-3",
-                )
-              : "text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-accent-foreground",
+              ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+              : "font-medium text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-accent-foreground",
           )
         }
       >
-        <Icon className={cn("shrink-0", collapsed ? "h-5 w-5" : "h-[18px] w-[18px]")} strokeWidth={1.75} />
-        <span
-          className={cn(
-            "overflow-hidden whitespace-nowrap text-left transition-[opacity,max-width] duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)]",
-            collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
-          )}
-        >
-          {item.label}
-        </span>
-        {!!item.badge && (
-          <span
-           
-            className={cn(
-              "rounded-full bg-warning font-semibold tabular-nums text-warning-foreground",
-              collapsed
-                ? "absolute right-1 top-1 h-2.5 w-2.5 overflow-hidden text-[0px]"
-                : "ml-auto min-w-5 px-1.5 text-center text-[11px] leading-5",
+        {({ isActive }) => (
+          <>
+            <Icon
+              className={cn(
+                "shrink-0",
+                collapsed ? "h-[18px] w-[18px]" : "h-4 w-4",
+                isActive ? "text-primary" : "text-sidebar-muted",
+              )}
+              strokeWidth={isActive ? 2 : 1.75}
+            />
+            <span
+              className={cn(
+                "overflow-hidden whitespace-nowrap text-left transition-[opacity,max-width] duration-[var(--motion-sidebar)] ease-[var(--ease-sidebar)]",
+                collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
+              )}
+            >
+              {item.label}
+            </span>
+            {!!item.badge && (
+              <span
+                className={cn(
+                  "rounded-full bg-warning font-semibold tabular-nums text-warning-foreground",
+                  collapsed
+                    ? "absolute right-1 top-1 h-2.5 w-2.5 overflow-hidden text-[0px]"
+                    : "ml-auto min-w-5 px-1.5 text-center text-[11px] leading-5",
+                )}
+              >
+                {item.badge > 99 ? "99+" : item.badge}
+              </span>
             )}
-          >
-            {item.badge > 99 ? "99+" : item.badge}
-          </span>
+          </>
         )}
       </NavLink>
     </li>
@@ -208,10 +223,7 @@ function MobileTabBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
               <span className="relative">
                 <Icon className="h-5 w-5" strokeWidth={active ? 2 : 1.75} />
                 {!!tab.badge && (
-                  <span
-                   
-                    className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-warning px-1 text-center text-[10px] font-semibold leading-4 tabular-nums text-warning-foreground"
-                  >
+                  <span className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-warning px-1 text-center text-[10px] font-semibold leading-4 tabular-nums text-warning-foreground">
                     {tab.badge > 9 ? "9+" : tab.badge}
                   </span>
                 )}
@@ -224,7 +236,10 @@ function MobileTabBar({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
           type="button"
           onClick={onMenu}
           aria-expanded={menuOpen}
-          className={cn(item, menuOpen || !anyTab ? cn("text-primary", marker) : "text-muted-foreground")}
+          className={cn(
+            item,
+            menuOpen || !anyTab ? cn("text-primary", marker) : "text-muted-foreground",
+          )}
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} />
           <span>Mais</span>
@@ -252,7 +267,7 @@ function AccountMenu({ base }: { base: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Menu da conta"
           title={displayName || displayEmail || "Conta"}
         >
@@ -263,7 +278,9 @@ function AccountMenu({ base }: { base: string }) {
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="truncate text-sm font-semibold">{displayName || "Conta"}</span>
           {displayEmail && (
-            <span className="truncate text-xs font-normal text-muted-foreground">{displayEmail}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">
+              {displayEmail}
+            </span>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -280,7 +297,10 @@ function AccountMenu({ base }: { base: string }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void signOut()} className="gap-2 text-danger focus:text-danger">
+        <DropdownMenuItem
+          onClick={() => void signOut()}
+          className="gap-2 text-danger focus:text-danger"
+        >
           <LogOut className="h-4 w-4" strokeWidth={1.75} />
           Sair
         </DropdownMenuItem>
@@ -306,7 +326,7 @@ export function AppShell() {
         <SidebarContent collapsed={collapsed} />
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="absolute -right-3.5 top-[18px] z-sidebar flex h-7 w-7 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-sm transition-[background-color,color,transform] duration-[var(--motion-base)] ease-[var(--ease-sidebar)] hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-90"
+          className="absolute -right-3 top-3 z-sidebar flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-sm transition-[background-color,color,transform] duration-[var(--motion-base)] ease-[var(--ease-sidebar)] hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-90"
           aria-label="Expandir ou recolher menu"
           title="Expandir ou recolher menu"
         >
@@ -342,7 +362,7 @@ export function AppShell() {
           collapsed ? "md:ml-sidebar-collapsed" : "md:ml-sidebar",
         )}
       >
-        <header className="sticky top-0 z-navigation flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-md sm:gap-3 md:h-16 md:px-6">
+        <header className="sticky top-0 z-navigation flex h-14 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur-md sm:gap-3 md:h-12 md:px-6">
           <button
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md md:hidden"
             onClick={() => setMobileOpen(true)}
@@ -355,13 +375,16 @@ export function AppShell() {
             <WorkspaceSwitcher tone="topbar" />
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             <AccountMenu base={base} />
           </div>
         </header>
 
-        <main className="flex-1 px-4 pt-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-8 md:py-8">
-          <Outlet />
+        <main className="flex-1 px-4 pt-5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:px-page-x md:pt-10 md:pb-12">
+          {/* Coluna de página no estilo Notion: margens generosas, sem esticar de ponta a ponta em telas largas. */}
+          <div className="mx-auto w-full max-w-[1320px]">
+            <Outlet />
+          </div>
         </main>
       </div>
       <MobileTabBar menuOpen={mobileOpen} onMenu={() => setMobileOpen(true)} />
