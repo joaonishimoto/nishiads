@@ -84,7 +84,8 @@ type Ctx = {
   block: (accountId: string) => ControlBlock | null;
   pending: ReadonlySet<string>;
   requestStatus: (node: TreeNode, ancestors: TreeNode[]) => void;
-  requestBudget: (node: TreeNode) => void;
+  /** `suggestedCents`: valor que já vem preenchido (ex.: sugestão do assistente). */
+  requestBudget: (node: TreeNode, suggestedCents?: number) => void;
   currency: string;
 };
 
@@ -119,7 +120,10 @@ export function MetaControlsProvider({
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [statusRequest, setStatusRequest] = useState<StatusRequest | null>(null);
-  const [budgetNode, setBudgetNode] = useState<TreeNode | null>(null);
+  const [budgetRequest, setBudgetRequest] = useState<{
+    node: TreeNode;
+    suggestedCents?: number;
+  } | null>(null);
   const [blocked, setBlocked] = useState<ControlBlock | null>(null);
 
   const block = useCallback(
@@ -183,8 +187,8 @@ export function MetaControlsProvider({
           next: node.configuredStatus === "ACTIVE" ? "PAUSED" : "ACTIVE",
         });
       },
-      requestBudget: (node) => {
-        if (node.budget && guard(node)) setBudgetNode(node);
+      requestBudget: (node, suggestedCents) => {
+        if (node.budget && guard(node)) setBudgetRequest({ node, suggestedCents });
       },
     }),
     [block, pending, currency, guard],
@@ -214,9 +218,10 @@ export function MetaControlsProvider({
           onConfirm={confirmStatus}
         />
         <BudgetDialog
-          node={budgetNode}
+          node={budgetRequest?.node ?? null}
+          suggestedCents={budgetRequest?.suggestedCents}
           currency={currency}
-          onClose={() => setBudgetNode(null)}
+          onClose={() => setBudgetRequest(null)}
           onSave={(node, cents) => {
             const previous = node.budget!.cents;
             const level = node.level as "campaign" | "adset";
@@ -225,7 +230,7 @@ export function MetaControlsProvider({
               `Orçamento de “${node.name}” agora é ${formatBudget({ ...node.budget!, cents }, currency)}.`,
               { level, id: node.id, action: "set_budget", budgetCents: previous },
             );
-            setBudgetNode(null);
+            setBudgetRequest(null);
           }}
         />
         <BlockedDialog
@@ -306,11 +311,13 @@ const STEPS = [-0.2, -0.1, 0.1, 0.2, 0.5];
 
 function BudgetDialog({
   node,
+  suggestedCents,
   currency,
   onClose,
   onSave,
 }: {
   node: TreeNode | null;
+  suggestedCents?: number;
   currency: string;
   onClose: () => void;
   onSave: (node: TreeNode, cents: number) => void;
@@ -319,11 +326,12 @@ function BudgetDialog({
     <Dialog open={!!node} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         {node?.budget && (
-          // Remonta a cada objeto: o valor digitado começa do orçamento atual.
+          // Remonta a cada objeto: o valor digitado começa do orçamento atual (ou do sugerido).
           <BudgetForm
             key={node.id}
             node={node}
             budget={node.budget}
+            initialCents={suggestedCents ?? node.budget.cents}
             currency={currency}
             onClose={onClose}
             onSave={onSave}
@@ -337,17 +345,19 @@ function BudgetDialog({
 function BudgetForm({
   node,
   budget,
+  initialCents,
   currency,
   onClose,
   onSave,
 }: {
   node: TreeNode;
   budget: Budget;
+  initialCents: number;
   currency: string;
   onClose: () => void;
   onSave: (node: TreeNode, cents: number) => void;
 }) {
-  const [reais, setReais] = useState(budget.cents / 100);
+  const [reais, setReais] = useState(initialCents / 100);
   const cents = Math.round(reais * 100);
   const delta = budgetChange(budget.cents, cents);
   const daily = budget.kind === "daily";
