@@ -50,6 +50,8 @@ import {
 import { CampaignRanking, flattenAds, TopCreatives } from "@/features/results/campaign-visuals";
 import { ProductCostsDialog } from "@/features/results/product-costs";
 import { SaleLine, useFreshIds } from "@/features/results/recent-sales";
+import { ViewPicker, useViewItems } from "@/features/views/view-picker";
+import type { ViewCatalog } from "@/features/views/catalog";
 import { friendlyError } from "@/lib/errors";
 import { formatMoney, plural } from "@/lib/format";
 import { splitUtmRef } from "@/lib/utm";
@@ -71,6 +73,61 @@ const STATUS_FILTERS: { key: StatusFilter; label: string; match: (s: SaleStatus)
   { key: "refunds", label: "Reembolsos", match: (s) => s === "refunded" || s === "chargeback" },
   { key: "canceled", label: "Recusadas", match: (s) => s === "canceled" },
 ];
+
+const CARD_LABELS = {
+  revenue: "Faturamento",
+  spend: "Gasto",
+  profit: "Lucro",
+  roas: "ROAS",
+  cpa: "CPA",
+  approved: "Vendas aprovadas",
+  ticket: "Ticket médio",
+  matched: "Com origem",
+  impressions: "Impressões",
+  clicks: "Cliques no link",
+  ctr: "CTR",
+  cpc: "CPC",
+  cpm: "CPM",
+  fees: "Taxas e custos",
+} as const;
+type CardKey = keyof typeof CARD_LABELS;
+
+const STRIP_LABELS = {
+  pending: "Pendentes",
+  refunds: "Reembolsos e chargebacks",
+  trials: "Testes iniciados",
+  refund_rate: "Taxa de reembolso",
+} as const;
+type StripKey = keyof typeof STRIP_LABELS;
+
+const SECTION_LABELS = {
+  chart: "Gráfico de gasto × faturamento",
+  origins: "Criativos que mais venderam",
+  ranking: "Ranking de campanhas",
+  creatives: "Criativos que mais dão lucro",
+  sales: "Lista de vendas",
+} as const;
+
+const EXTRA_CARDS: CardKey[] = ["impressions", "clicks", "ctr", "cpc", "cpm", "fees"];
+
+/** O que dá para ligar e desligar no Dashboard; sem template, fica como sempre foi. */
+const DASHBOARD_VIEW: ViewCatalog = {
+  groups: [
+    { key: "cards", label: "Cartões de métricas", reorder: true },
+    { key: "strip", label: "Linha de resumo", reorder: true },
+    { key: "sections", label: "Seções", reorder: false },
+  ],
+  options: [
+    ...Object.entries(CARD_LABELS).map(([key, label]) => ({ key, label, group: "cards" })),
+    ...Object.entries(STRIP_LABELS).map(([key, label]) => ({ key, label, group: "strip" })),
+    ...Object.entries(SECTION_LABELS).map(([key, label]) => ({ key, label, group: "sections" })),
+  ],
+  defaults: [
+    ...(Object.keys(CARD_LABELS) as CardKey[]).filter((k) => !EXTRA_CARDS.includes(k)),
+    ...Object.keys(STRIP_LABELS),
+    ...Object.keys(SECTION_LABELS),
+  ],
+};
 
 /** Métricas gerais do negócio (faturamento, gasto, lucro, ROAS, CPA) e a lista de vendas. */
 export function DashboardPage() {
@@ -107,6 +164,7 @@ export function DashboardPage() {
       actions={
         <>
           <LiveBadge />
+          {view === "all" && <ViewPicker page="dashboard" catalog={DASHBOARD_VIEW} />}
           <Button variant="outline" onClick={() => setCostsOpen(true)}>
             <Coins />
             Custos
@@ -238,6 +296,217 @@ function AllView({
   const counts = Object.fromEntries(
     STATUS_FILTERS.map((f) => [f.key, sales.filter((s) => f.match(s.status)).length]),
   );
+  const { items, shown } = useViewItems("dashboard", DASHBOARD_VIEW);
+  const cardKeys = items.filter((k): k is CardKey => k in CARD_LABELS);
+  const stripKeys = items.filter((k): k is StripKey => k in STRIP_LABELS);
+  const ctr = (x: { impressions: number; linkClicks: number } | null) =>
+    x && x.impressions > 0 ? x.linkClicks / x.impressions : null;
+  const cpc = (x: { spendCents: number; linkClicks: number } | null) =>
+    x && x.linkClicks > 0 ? Math.round(x.spendCents / x.linkClicks) : null;
+  const cpm = (x: { spendCents: number; impressions: number } | null) =>
+    x && x.impressions > 0 ? Math.round((x.spendCents / x.impressions) * 1000) : null;
+  const metaHint = meta ? comparison : "conecte a Meta";
+
+  const cards: Record<CardKey, (emphasis: boolean) => React.ReactNode> = {
+    revenue: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.revenue}
+        value={formatMoney(t.revenueCents, cur)}
+        delta={change(t.revenueCents, p?.revenueCents ?? null)}
+        hint={comparison}
+      />
+    ),
+    spend: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.spend}
+        value={meta ? formatMoney(t.spendCents, cur) : "—"}
+        delta={meta ? spendChange(t.spendCents, p?.spendCents ?? null) : null}
+        invert
+        hint={filters.productId ? "de todas as campanhas" : metaHint}
+        info={
+          filters.productId
+            ? "A Meta não separa gasto por produto: o gasto é o das campanhas filtradas."
+            : undefined
+        }
+      />
+    ),
+    profit: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.profit}
+        value={formatMoney(t.profitCents, cur)}
+        tone={t.profitCents < 0 ? "danger" : t.profitCents > 0 ? "success" : undefined}
+        delta={spendChange(t.profitCents, p?.profitCents ?? null)}
+        hint={
+          noCosts ? (
+            <button
+              type="button"
+              className="underline-offset-2 hover:text-primary hover:underline"
+              onClick={onOpenCosts}
+            >
+              informe os custos
+            </button>
+          ) : (
+            comparison
+          )
+        }
+        info="Faturamento − taxas do checkout − custo dos produtos − gasto em anúncios."
+      />
+    ),
+    roas: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.roas}
+        value={fmt.roas(t.roas)}
+        delta={spendChange(t.roas, p?.roas ?? null)}
+        hint={t.roas === null ? "sem gasto no período" : `meta ${fmt.roas(target)}`}
+        info="Faturamento dividido pelo gasto. Inclui vendas sem origem identificada."
+      />
+    ),
+    cpa: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.cpa}
+        value={fmt.money(t.cpaCents, cur)}
+        delta={spendChange(t.cpaCents, p?.cpaCents ?? null)}
+        invert
+        hint="custo por venda"
+      />
+    ),
+    approved: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.approved}
+        value={fmt.int(t.approvedCount)}
+        delta={change(t.approvedCount, p?.approvedCount ?? null)}
+        hint={comparison}
+      />
+    ),
+    ticket: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.ticket}
+        value={fmt.money(t.ticketCents, cur)}
+        delta={change(t.ticketCents, p?.ticketCents ?? null)}
+        hint={comparison}
+      />
+    ),
+    matched: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.matched}
+        value={fmt.pct(t.matchedShare)}
+        hint={
+          t.approvedCount
+            ? `${formatMoney(t.matchedRevenueCents, cur)} atribuídos`
+            : "sem vendas no período"
+        }
+        info="Vendas aprovadas ligadas a campanha, conjunto e criativo."
+      />
+    ),
+    impressions: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.impressions}
+        value={meta ? fmt.int(t.impressions) : "—"}
+        delta={meta ? spendChange(t.impressions, p?.impressions ?? null) : null}
+        hint={metaHint}
+      />
+    ),
+    clicks: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.clicks}
+        value={meta ? fmt.int(t.linkClicks) : "—"}
+        delta={meta ? spendChange(t.linkClicks, p?.linkClicks ?? null) : null}
+        hint={metaHint}
+      />
+    ),
+    ctr: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.ctr}
+        value={meta ? fmt.pct(ctr(t), 2) : "—"}
+        delta={meta ? spendChange(ctr(t), ctr(p)) : null}
+        hint={metaHint}
+        info="Cliques no link divididos pelas impressões."
+      />
+    ),
+    cpc: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.cpc}
+        value={meta ? fmt.money(cpc(t), cur) : "—"}
+        delta={meta ? spendChange(cpc(t), cpc(p)) : null}
+        invert
+        hint={meta ? "custo por clique no link" : metaHint}
+      />
+    ),
+    cpm: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.cpm}
+        value={meta ? fmt.money(cpm(t), cur) : "—"}
+        delta={meta ? spendChange(cpm(t), cpm(p)) : null}
+        invert
+        hint={meta ? "custo por mil impressões" : metaHint}
+      />
+    ),
+    fees: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.fees}
+        value={formatMoney(t.feesCents + t.costCents, cur)}
+        delta={change(t.feesCents + t.costCents, p ? p.feesCents + p.costCents : null)}
+        invert
+        hint={noCosts ? "informe os custos" : comparison}
+        info="Taxas do checkout mais o custo dos produtos vendidos, como cadastrado em Custos."
+      />
+    ),
+  };
+
+  const strip: Record<StripKey, React.ReactNode> = {
+    pending: (
+      <QuickStat
+        label={STRIP_LABELS.pending}
+        value={
+          t.pendingCount ? `${fmt.int(t.pendingCount)} · ${formatMoney(t.pendingCents, cur)}` : "0"
+        }
+      />
+    ),
+    refunds: (
+      <QuickStat
+        label={STRIP_LABELS.refunds}
+        value={
+          t.refundCount ? `${fmt.int(t.refundCount)} · ${formatMoney(t.refundCents, cur)}` : "0"
+        }
+        tone={t.refundCount ? "danger" : undefined}
+      />
+    ),
+    trials:
+      t.trialCount > 0 ? (
+        <QuickStat
+          label={STRIP_LABELS.trials}
+          value={`${fmt.int(t.trialCount)} · ${fmt.pct(t.trialConvertedCount / t.trialCount)} pagaram`}
+        />
+      ) : null,
+    refund_rate: (
+      <QuickStat
+        label={STRIP_LABELS.refund_rate}
+        value={
+          t.approvedCount + t.refundCount
+            ? fmt.pct(t.refundCount / (t.approvedCount + t.refundCount), 1)
+            : "—"
+        }
+      />
+    ),
+  };
+  const showChart = shown.has("chart");
+  const showOrigins = shown.has("origins");
+  const showRanking = meta && shown.has("ranking");
+  const showCreatives = meta && shown.has("creatives");
 
   return (
     <div className="space-y-5">
@@ -264,268 +533,200 @@ function AllView({
         </Panel>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <MetricCard
-          emphasis
-          label="Faturamento"
-          value={formatMoney(t.revenueCents, cur)}
-          delta={change(t.revenueCents, p?.revenueCents ?? null)}
-          hint={comparison}
-        />
-        <MetricCard
-          label="Gasto"
-          value={meta ? formatMoney(t.spendCents, cur) : "—"}
-          delta={meta ? spendChange(t.spendCents, p?.spendCents ?? null) : null}
-          invert
-          hint={filters.productId ? "de todas as campanhas" : meta ? comparison : "conecte a Meta"}
-          info={
-            filters.productId
-              ? "A Meta não separa gasto por produto: o gasto é o das campanhas filtradas."
-              : undefined
-          }
-        />
-        <MetricCard
-          label="Lucro"
-          value={formatMoney(t.profitCents, cur)}
-          tone={t.profitCents < 0 ? "danger" : t.profitCents > 0 ? "success" : undefined}
-          delta={spendChange(t.profitCents, p?.profitCents ?? null)}
-          hint={
-            noCosts ? (
-              <button
-                type="button"
-                className="underline-offset-2 hover:text-primary hover:underline"
-                onClick={onOpenCosts}
-              >
-                informe os custos
-              </button>
-            ) : (
-              comparison
-            )
-          }
-          info="Faturamento − taxas do checkout − custo dos produtos − gasto em anúncios."
-        />
-        <MetricCard
-          label="ROAS"
-          value={fmt.roas(t.roas)}
-          delta={spendChange(t.roas, p?.roas ?? null)}
-          hint={t.roas === null ? "sem gasto no período" : `meta ${fmt.roas(target)}`}
-          info="Faturamento dividido pelo gasto. Inclui vendas sem origem identificada."
-        />
-        <MetricCard
-          label="CPA"
-          value={fmt.money(t.cpaCents, cur)}
-          delta={spendChange(t.cpaCents, p?.cpaCents ?? null)}
-          invert
-          hint="custo por venda"
-        />
-        <MetricCard
-          label="Vendas aprovadas"
-          value={fmt.int(t.approvedCount)}
-          delta={change(t.approvedCount, p?.approvedCount ?? null)}
-          hint={comparison}
-        />
-        <MetricCard
-          label="Ticket médio"
-          value={fmt.money(t.ticketCents, cur)}
-          delta={change(t.ticketCents, p?.ticketCents ?? null)}
-          hint={comparison}
-        />
-        <MetricCard
-          label="Com origem"
-          value={fmt.pct(t.matchedShare)}
-          hint={
-            t.approvedCount
-              ? `${formatMoney(t.matchedRevenueCents, cur)} atribuídos`
-              : "sem vendas no período"
-          }
-          info="Vendas aprovadas ligadas a campanha, conjunto e criativo."
-        />
-      </div>
+      {cardKeys.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          {cardKeys.map((key, i) => (
+            <Fragment key={key}>{cards[key](i === 0)}</Fragment>
+          ))}
+        </div>
+      )}
       {t.otherCurrencySpend && (
         <p className="flex items-start gap-2 text-xs text-warning-strong">
           <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
           Há conta de anúncio em outra moeda. O gasto dela fica fora dos totais em {cur}.
         </p>
       )}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm sm:flex sm:flex-wrap sm:gap-x-8">
-        <QuickStat
-          label="Pendentes"
-          value={
-            t.pendingCount
-              ? `${fmt.int(t.pendingCount)} · ${formatMoney(t.pendingCents, cur)}`
-              : "0"
-          }
-        />
-        <QuickStat
-          label="Reembolsos e chargebacks"
-          value={
-            t.refundCount ? `${fmt.int(t.refundCount)} · ${formatMoney(t.refundCents, cur)}` : "0"
-          }
-          tone={t.refundCount ? "danger" : undefined}
-        />
-        {t.trialCount > 0 && (
-          <QuickStat
-            label="Testes iniciados"
-            value={`${fmt.int(t.trialCount)} · ${fmt.pct(t.trialConvertedCount / t.trialCount)} pagaram`}
-          />
-        )}
-        <QuickStat
-          label="Taxa de reembolso"
-          value={
-            t.approvedCount + t.refundCount
-              ? fmt.pct(t.refundCount / (t.approvedCount + t.refundCount), 1)
-              : "—"
-          }
-        />
-      </dl>
+      {stripKeys.length > 0 && (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm sm:flex sm:flex-wrap sm:gap-x-8">
+          {stripKeys.map((key) => (
+            <Fragment key={key}>{strip[key]}</Fragment>
+          ))}
+        </dl>
+      )}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Panel
-          title={
-            series.mode === "hour"
-              ? "Faturamento por hora"
-              : meta
-                ? "Gasto × faturamento por dia"
-                : "Faturamento por dia"
-          }
-          description={
-            series.mode === "hour"
-              ? meta
-                ? "A Meta informa o gasto por dia, não por hora."
-                : `${plural(t.approvedCount, "venda aprovada", "vendas aprovadas")} no período`
-              : `${formatMoney(t.revenueCents, cur)} faturados${meta ? ` · ${formatMoney(t.spendCents, cur)} investidos` : ""}`
-          }
-        >
-          <SpendRevenueChart
-            points={series.points}
-            mode={series.mode}
-            currency={cur}
-            showSpend={meta}
-          />
-        </Panel>
-        <Panel
-          title="Criativos que mais venderam"
-          action={
-            <Link
-              to={`${base}/campanhas?aba=criativos`}
-              className="shrink-0 text-xs font-medium text-primary hover:underline"
-            >
-              Ver métricas
-            </Link>
-          }
-        >
-          {origins.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              Quando as vendas chegarem com UTMs, os criativos que mais vendem aparecem aqui.
-            </p>
-          ) : (
-            <ol className="divide-y divide-border">
-              {origins.map((o, i) => (
-                <li key={o.key} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="w-4 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <Thumb src={o.thumbnailUrl} alt="" size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{o.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {o.path ?? "Só pelo UTM"}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums text-foreground">
-                      {formatMoney(o.revenueCents, cur)}
-                    </p>
-                    <p className="text-xs tabular-nums text-muted-foreground">
-                      {plural(o.sales, "venda", "vendas")}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+      {(showChart || showOrigins) && (
+        <div
+          className={cn(
+            "grid grid-cols-[minmax(0,1fr)] gap-4",
+            showChart && showOrigins && "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]",
           )}
-        </Panel>
-      </div>
-
-      {meta && (
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <Panel
-            title="Campanhas"
-            description="Faturamento contra gasto de cada campanha, na mesma escala."
-            action={<RoasTargetButton target={target} onChange={setTarget} />}
-          >
-            {tree.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                Nenhuma campanha com gasto no período.
-              </p>
-            ) : (
-              <CampaignRanking
-                nodes={tree}
+        >
+          {showChart && (
+            <Panel
+              title={
+                series.mode === "hour"
+                  ? "Faturamento por hora"
+                  : meta
+                    ? "Gasto × faturamento por dia"
+                    : "Faturamento por dia"
+              }
+              description={
+                series.mode === "hour"
+                  ? meta
+                    ? "A Meta informa o gasto por dia, não por hora."
+                    : `${plural(t.approvedCount, "venda aprovada", "vendas aprovadas")} no período`
+                  : `${formatMoney(t.revenueCents, cur)} faturados${meta ? ` · ${formatMoney(t.spendCents, cur)} investidos` : ""}`
+              }
+            >
+              <SpendRevenueChart
+                points={series.points}
+                mode={series.mode}
                 currency={cur}
-                target={target}
-                onOpenAll={() => openCampaigns()}
+                showSpend={meta}
               />
-            )}
-          </Panel>
-          <Panel title="Criativos que mais dão lucro">
-            <TopCreatives
-              items={creatives}
-              currency={cur}
-              target={target}
-              onOpenAll={creatives.length ? () => openCampaigns("criativos") : undefined}
-            />
-          </Panel>
+            </Panel>
+          )}
+          {showOrigins && (
+            <Panel
+              title="Criativos que mais venderam"
+              action={
+                <Link
+                  to={`${base}/campanhas?aba=criativos`}
+                  className="shrink-0 text-xs font-medium text-primary hover:underline"
+                >
+                  Ver métricas
+                </Link>
+              }
+            >
+              {origins.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Quando as vendas chegarem com UTMs, os criativos que mais vendem aparecem aqui.
+                </p>
+              ) : (
+                <ol className="divide-y divide-border">
+                  {origins.map((o, i) => (
+                    <li key={o.key} className="flex items-center gap-3 px-4 py-2.5">
+                      <span className="w-4 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      <Thumb src={o.thumbnailUrl} alt="" size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{o.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {o.path ?? "Só pelo UTM"}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums text-foreground">
+                          {formatMoney(o.revenueCents, cur)}
+                        </p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {plural(o.sales, "venda", "vendas")}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Panel>
+          )}
         </div>
       )}
 
-      <SalesFeed
-        sales={visible}
-        chips={
-          <div className="flex gap-1.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]" role="group" aria-label="Status">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                aria-pressed={status === f.key}
-                onClick={() =>
-                  setParams(
-                    (prev) => {
-                      const next = new URLSearchParams(prev);
-                      if (f.key === "all") next.delete("status");
-                      else next.set("status", f.key);
-                      return next;
-                    },
-                    { replace: true },
-                  )
+      {(showRanking || showCreatives) && (
+        <div
+          className={cn(
+            "grid grid-cols-[minmax(0,1fr)] gap-4",
+            showRanking && showCreatives && "lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]",
+          )}
+        >
+          {showRanking && (
+            <Panel
+              title="Campanhas"
+              description="Faturamento contra gasto de cada campanha, na mesma escala."
+              action={<RoasTargetButton target={target} onChange={setTarget} />}
+            >
+              {tree.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma campanha com gasto no período.
+                </p>
+              ) : (
+                <CampaignRanking
+                  nodes={tree}
+                  currency={cur}
+                  target={target}
+                  onOpenAll={() => openCampaigns()}
+                />
+              )}
+            </Panel>
+          )}
+          {showCreatives && (
+            <Panel title="Criativos que mais dão lucro">
+              <TopCreatives
+                items={creatives}
+                currency={cur}
+                target={target}
+                onOpenAll={creatives.length ? () => openCampaigns("criativos") : undefined}
+              />
+            </Panel>
+          )}
+        </div>
+      )}
+
+      {shown.has("sales") && (
+        <SalesFeed
+          sales={visible}
+          chips={
+            <div
+              className="flex gap-1.5 overflow-x-auto overflow-y-hidden [scrollbar-width:none]"
+              role="group"
+              aria-label="Status"
+            >
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={status === f.key}
+                  onClick={() =>
+                    setParams(
+                      (prev) => {
+                        const next = new URLSearchParams(prev);
+                        if (f.key === "all") next.delete("status");
+                        else next.set("status", f.key);
+                        return next;
+                      },
+                      { replace: true },
+                    )
+                  }
+                  className={cn(
+                    "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                    status === f.key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground",
+                  )}
+                >
+                  {f.label}
+                  <span className="tabular-nums opacity-80">{fmt.int(counts[f.key] ?? 0)}</span>
+                </button>
+              ))}
+            </div>
+          }
+          empty={
+            sales.length === 0 ? (
+              <EmptyState
+                icon={Receipt}
+                title="Nenhuma venda no período"
+                description="As vendas aparecem aqui na hora em que o checkout enviar o webhook."
+                action={
+                  <Button variant="outline" asChild>
+                    <Link to={`${base}/integracoes`}>Conectar checkout</Link>
+                  </Button>
                 }
-                className={cn(
-                  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
-                  status === f.key
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-surface text-muted-foreground hover:border-border-strong hover:text-foreground",
-                )}
-              >
-                {f.label}
-                <span className="tabular-nums opacity-80">{fmt.int(counts[f.key] ?? 0)}</span>
-              </button>
-            ))}
-          </div>
-        }
-        empty={
-          sales.length === 0 ? (
-            <EmptyState
-              icon={Receipt}
-              title="Nenhuma venda no período"
-              description="As vendas aparecem aqui na hora em que o checkout enviar o webhook."
-              action={
-                <Button variant="outline" asChild>
-                  <Link to={`${base}/integracoes`}>Conectar checkout</Link>
-                </Button>
-              }
-            />
-          ) : undefined
-        }
-      />
+              />
+            ) : undefined
+          }
+        />
+      )}
     </div>
   );
 }

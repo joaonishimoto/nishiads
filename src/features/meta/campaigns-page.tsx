@@ -24,7 +24,8 @@ import { FilterBar, useResultFilters } from "@/features/results/filters";
 import { useResults } from "@/features/results/use-results";
 import type { NodeMetrics } from "@/features/results/metrics";
 import { fmt, RoasTargetButton, useRoasTarget } from "@/features/results/components";
-import { CampaignTree } from "@/features/results/campaign-tree";
+import { CAMPAIGNS_VIEW, CampaignTree } from "@/features/results/campaign-tree";
+import { ViewPicker, useViewItems } from "@/features/views/view-picker";
 import { timeAgo } from "@/features/results/recent-sales";
 import { ProductCostsDialog } from "@/features/results/product-costs";
 import { CreativeGrid, flattenAds } from "@/features/results/campaign-visuals";
@@ -77,6 +78,7 @@ function CampaignsContent() {
       { replace: true },
     );
   useSalesRealtime(workspace.id);
+  const view = useViewItems("campaigns", CAMPAIGNS_VIEW);
 
   const syncing = results.tracked.some(isSyncing);
   const header = (
@@ -289,7 +291,13 @@ function CampaignsContent() {
                 totals={treeTotals}
                 currency={cur}
                 target={target}
-                toolbar={<ActionHistoryButton currency={cur} />}
+                columns={view.items}
+                toolbar={
+                  <>
+                    <ViewPicker page="campaigns" catalog={CAMPAIGNS_VIEW} className="h-8" />
+                    <ActionHistoryButton currency={cur} />
+                  </>
+                }
                 unattributed={{
                   sales: withoutCampaign.length,
                   revenueCents: withoutCampaign.reduce((n, s) => n + s.gross_amount_cents, 0),

@@ -284,6 +284,19 @@ export type AlertWindow = "today" | "last_3d" | "last_7d";
 export type AlertAction = "notify" | "approve_pause" | "auto_pause";
 export type AlertStatus = "notified" | "pending" | "pausing" | "paused" | "dismissed" | "expired";
 
+export type ViewTemplatePage = "dashboard" | "campaigns";
+
+type ViewTemplateRow = Timestamps & {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  page: ViewTemplatePage;
+  name: string;
+  /** Chaves das métricas ou colunas, na ordem em que aparecem. */
+  items: string[];
+  is_default: boolean;
+};
+
 type AlertRuleRow = Timestamps & {
   id: string;
   workspace_id: string;
@@ -446,6 +459,7 @@ export type Database = {
       >;
       notification_preferences: Table<NotificationPreferencesRow, "workspace_id" | "user_id">;
       alert_rules: Table<AlertRuleRow, "workspace_id" | "name" | "condition" | "level">;
+      view_templates: Table<ViewTemplateRow, "workspace_id" | "page" | "name" | "items">;
       alerts: Table<
         AlertRow,
         | "workspace_id"
