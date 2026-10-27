@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { derived, type Level, type NodeMetrics, type TreeNode } from "@/features/results/metrics";
 import { fmt, RoasBadge, Thumb } from "@/features/results/components";
 import { BudgetValue, DeliveryToggle, useMetaControls } from "@/features/meta/controls";
+import type { ViewCatalog } from "@/features/views/catalog";
 
 export const DELIVERY_LABELS: Record<string, string> = {
   ACTIVE: "Ativo",
@@ -53,7 +54,26 @@ type ColumnKey =
   | "revenue"
   | "roas"
   | "cpa"
-  | "profit";
+  | "profit"
+  | "cpm"
+  | "ticket"
+  | "conversion";
+
+function cpm(m: NodeMetrics) {
+  return m.impressions > 0 ? Math.round((m.spendCents / m.impressions) * 1000) : null;
+}
+function ticket(m: NodeMetrics) {
+  return m.sales > 0 ? Math.round(m.revenueCents / m.sales) : null;
+}
+/** Vendas por clique no link. */
+function conversion(m: NodeMetrics) {
+  return m.linkClicks > 0 ? m.sales / m.linkClicks : null;
+}
+
+const COLUMN_HINTS: Partial<Record<ColumnKey, string>> = {
+  cpm: "custo por mil impressões",
+  conversion: "vendas por clique",
+};
 
 type Column = {
   key: ColumnKey;
@@ -125,7 +145,53 @@ const COLUMNS: Column[] = [
     value: derived.cpc,
     render: (m, c) => fmt.money(derived.cpc(m), c.currency),
   },
+  {
+    key: "cpm",
+    label: "CPM",
+    value: cpm,
+    render: (m, c) => fmt.money(cpm(m), c.currency),
+  },
+  {
+    key: "ticket",
+    label: "Ticket médio",
+    value: ticket,
+    render: (m, c) => fmt.money(ticket(m), c.currency),
+  },
+  {
+    key: "conversion",
+    label: "Conversão",
+    value: conversion,
+    render: (m) => fmt.pct(conversion(m), 2),
+  },
 ];
+
+/** Colunas que dá para ligar e desligar no template de Campanhas, além do orçamento. */
+const DEFAULT_COLUMNS: ColumnKey[] = [
+  "spend",
+  "sales",
+  "revenue",
+  "roas",
+  "cpa",
+  "profit",
+  "impressions",
+  "clicks",
+  "ctr",
+  "cpc",
+];
+
+export const CAMPAIGNS_VIEW: ViewCatalog = {
+  groups: [{ key: "columns", label: "Colunas", reorder: true }],
+  options: [
+    { key: "budget", label: "Orçamento", group: "columns", hint: "quando a Meta informa" },
+    ...COLUMNS.map((c) => ({
+      key: c.key,
+      label: c.label,
+      group: "columns",
+      hint: COLUMN_HINTS[c.key],
+    })),
+  ],
+  defaults: ["budget", ...DEFAULT_COLUMNS],
+};
 
 type Sort = { key: ColumnKey; dir: "asc" | "desc" };
 
@@ -177,6 +243,7 @@ export function CampaignTree({
   target,
   toolbar,
   unattributed,
+  columns,
 }: {
   nodes: TreeNode[];
   totals: NodeMetrics;
@@ -185,6 +252,8 @@ export function CampaignTree({
   toolbar?: ReactNode;
   /** Vendas aprovadas sem campanha: linha de rodapé com link para a visão Sem origem. */
   unattributed?: { sales: number; revenueCents: number; to: string };
+  /** Colunas do template, na ordem (CAMPAIGNS_VIEW); sem template, as de sempre. */
+  columns?: readonly string[];
 }) {
   const [sort, setSort] = useState<Sort>({ key: "spend", dir: "desc" });
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -192,6 +261,8 @@ export function CampaignTree({
   const q = query.trim().toLowerCase();
   const visible = useMemo(() => prune(sortNodes(nodes, sort), q), [nodes, sort, q]);
   const ctx = { currency, target };
+  const keys = columns ?? CAMPAIGNS_VIEW.defaults;
+  const cols = useMemo(() => keys.flatMap((k) => COLUMNS.filter((c) => c.key === k)), [keys]);
 
   const isOpen = (id: string) => !!q || open.has(id);
   const toggle = (id: string) =>
@@ -208,8 +279,9 @@ export function CampaignTree({
   const anyOpen = open.size > 0;
   // Coluna de orçamento só depois da primeira sincronização que traz orçamentos.
   const showBudget = useMemo(
-    () => nodes.some((c) => c.budget || c.children.some((a) => a.budget)),
-    [nodes],
+    () =>
+      keys.includes("budget") && nodes.some((c) => c.budget || c.children.some((a) => a.budget)),
+    [nodes, keys],
   );
 
   const headerSort = (key: ColumnKey) =>
@@ -254,7 +326,7 @@ export function CampaignTree({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {COLUMNS.flatMap((c) => [
+            {cols.flatMap((c) => [
               <SelectItem
                 key={`${c.key}|desc`}
                 value={`${c.key}|desc`}
@@ -296,12 +368,17 @@ export function CampaignTree({
             isOpen={isOpen}
             toggle={toggle}
             ctx={ctx}
+            cols={cols}
+            budget={keys.includes("budget")}
           />
         ))}
       </ul>
 
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[1160px] text-sm">
+        <table
+          className="w-full text-sm"
+          style={{ minWidth: 300 + cols.length * 96 + (showBudget ? 120 : 0) }}
+        >
           <thead>
             <tr className="border-b border-border text-xs text-muted-foreground">
               <th className="sticky left-0 z-10 min-w-64 bg-surface px-4 py-2.5 text-left font-medium">
@@ -310,7 +387,7 @@ export function CampaignTree({
               {showBudget && (
                 <th className="whitespace-nowrap px-3 py-2.5 text-right font-medium">Orçamento</th>
               )}
-              {COLUMNS.map((c) => {
+              {cols.map((c) => {
                 const active = sort.key === c.key;
                 const Icon = sort.dir === "asc" ? ArrowUp : ArrowDown;
                 return (
@@ -349,6 +426,7 @@ export function CampaignTree({
                 isOpen={isOpen}
                 toggle={toggle}
                 ctx={ctx}
+                cols={cols}
               />
             ))}
           </tbody>
@@ -365,7 +443,7 @@ export function CampaignTree({
                   </Link>
                 </td>
                 {showBudget && <td />}
-                {COLUMNS.map((c) => (
+                {cols.map((c) => (
                   <td key={c.key} className="px-3 py-2.5 text-right tabular-nums">
                     {c.key === "sales"
                       ? fmt.int(unattributed.sales)
@@ -381,7 +459,7 @@ export function CampaignTree({
                 Total no período
               </td>
               {showBudget && <td />}
-              {COLUMNS.map((c) => (
+              {cols.map((c) => (
                 <td
                   key={c.key}
                   className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-foreground"
@@ -417,6 +495,7 @@ type NodeProps = {
   isOpen: (id: string) => boolean;
   toggle: (id: string) => void;
   ctx: { currency: string; target: number };
+  cols: Column[];
 };
 
 function NodeName({
@@ -505,6 +584,7 @@ function DesktopRows({
   isOpen,
   toggle,
   ctx,
+  cols,
   showBudget,
 }: NodeProps & { showBudget: boolean }) {
   const open = isOpen(node.id);
@@ -537,7 +617,7 @@ function DesktopRows({
             <BudgetValue node={node} />
           </td>
         )}
-        {COLUMNS.map((c) => (
+        {cols.map((c) => (
           <td
             key={c.key}
             className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-foreground"
@@ -557,38 +637,40 @@ function DesktopRows({
             isOpen={isOpen}
             toggle={toggle}
             ctx={ctx}
+            cols={cols}
           />
         ))}
     </Fragment>
   );
 }
 
-function MobileNode({ node, ancestors, depth, isOpen, toggle, ctx }: NodeProps) {
+// No celular, volume e custo de mídia vão numa linha de rodapé; o resto vira grade.
+const MOBILE_FOOTNOTE = new Set<ColumnKey>(["impressions", "clicks", "ctr", "cpc", "cpm"]);
+
+function MobileNode({
+  node,
+  ancestors,
+  depth,
+  isOpen,
+  toggle,
+  ctx,
+  cols,
+  budget,
+}: NodeProps & { budget: boolean }) {
   const open = isOpen(node.id);
   const expandable = node.children.length > 0;
   const m = node.metrics;
-  const profit = derived.profit(m);
-  const cells: [string, ReactNode][] = [
-    ["Gasto", fmt.money(m.spendCents, ctx.currency)],
-    ["Faturamento", fmt.money(m.revenueCents, ctx.currency)],
-    [
-      "ROAS",
-      <RoasBadge key="roas" roas={derived.roas(m)} target={ctx.target} className="-mx-1.5" />,
-    ],
-    ["Vendas", fmt.int(m.sales)],
-    ["CPA", fmt.money(derived.cpa(m), ctx.currency)],
-    [
-      "Lucro",
-      <span
-        key="p"
-        className={
-          profit < 0 ? "text-danger-strong" : profit > 0 ? "text-success-strong" : undefined
-        }
-      >
-        {fmt.money(profit, ctx.currency)}
-      </span>,
-    ],
-  ];
+  const cells: [string, ReactNode][] = cols
+    .filter((c) => !MOBILE_FOOTNOTE.has(c.key))
+    .map((c) => [
+      c.label,
+      c.key === "roas" ? (
+        <RoasBadge key="roas" roas={derived.roas(m)} target={ctx.target} className="-mx-1.5" />
+      ) : (
+        c.render(m, ctx)
+      ),
+    ]);
+  const footnote = cols.filter((c) => MOBILE_FOOTNOTE.has(c.key));
   return (
     <li className={cn(depth > 0 && "border-l-2 border-primary/25 bg-surface-muted/40")}>
       {/* O cartão inteiro abre e fecha; o botão da seta continua sendo o controle acessível. */}
@@ -605,25 +687,33 @@ function MobileNode({ node, ancestors, depth, isOpen, toggle, ctx }: NodeProps) 
           open={open}
           onToggle={() => toggle(node.id)}
         />
-        {node.level !== "ad" && (node.budget || node.usesCampaignBudget) && (
+        {budget && node.level !== "ad" && (node.budget || node.usesCampaignBudget) && (
           <p className="mt-1.5 flex items-center gap-1.5 pl-8 text-xs text-muted-foreground">
             Orçamento <BudgetValue node={node} compact />
           </p>
         )}
-        <dl className="mt-2.5 grid grid-cols-3 gap-x-3 gap-y-2 pl-8">
-          {cells.map(([label, value]) => (
-            <div key={label} className="min-w-0">
-              <dt className="text-[11px] text-muted-foreground">{label}</dt>
-              <dd className="text-sm font-medium tabular-nums whitespace-nowrap text-foreground">
-                {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <p className="mt-1.5 pl-8 text-[11px] text-muted-foreground tabular-nums">
-          {fmt.int(m.impressions)} impressões · {fmt.int(m.linkClicks)} cliques · CTR{" "}
-          {fmt.pct(derived.ctr(m), 2)} · CPC {fmt.money(derived.cpc(m), ctx.currency)}
-        </p>
+        {cells.length > 0 && (
+          <dl className="mt-2.5 grid grid-cols-3 gap-x-3 gap-y-2 pl-8">
+            {cells.map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className="text-[11px] text-muted-foreground">{label}</dt>
+                <dd className="text-sm font-medium tabular-nums whitespace-nowrap text-foreground">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {footnote.length > 0 && (
+          <p className="mt-1.5 pl-8 text-[11px] text-muted-foreground tabular-nums">
+            {footnote.map((c, i) => (
+              <Fragment key={c.key}>
+                {i > 0 && " · "}
+                {c.label} {c.render(m, ctx)}
+              </Fragment>
+            ))}
+          </p>
+        )}
       </div>
       {open && expandable && (
         <ul className="divide-y divide-border border-t border-border pl-2">
@@ -636,6 +726,8 @@ function MobileNode({ node, ancestors, depth, isOpen, toggle, ctx }: NodeProps) 
               isOpen={isOpen}
               toggle={toggle}
               ctx={ctx}
+              cols={cols}
+              budget={budget}
             />
           ))}
         </ul>
