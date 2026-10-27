@@ -119,6 +119,9 @@ export function useResultFilters(): ResultFiltersState {
             const next = new URLSearchParams(prev);
             if (value === null) next.delete(key);
             else next.set(key, value);
+            // Sem nenhum filtro na URL, o hook restaura os salvos e desfaz a escolha
+            // (ex.: voltar para "Últimos 7 dias" ou para "Todas as contas").
+            if (!next.has("periodo")) next.set("periodo", period);
             return next;
           },
           { replace: true },
@@ -144,7 +147,7 @@ export function FilterBar({
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Select
           value={filters.period}
-          onValueChange={(v) => filters.set("periodo", v === "7d" ? null : v)}
+          onValueChange={(v) => filters.set("periodo", v)}
         >
           <SelectTrigger
             className={showAccounts && showProducts ? "col-span-2 sm:w-48" : "sm:w-48"}
