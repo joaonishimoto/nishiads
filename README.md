@@ -8,6 +8,7 @@ Vendas de infoprodutos e e-commerce atribuídas à **campanha, conjunto e criati
 
 - **Dashboard** (`/w/:id/dashboard`): métricas gerais do período (faturamento, gasto, lucro, ROAS, CPA, ticket, vendas com origem), gráfico gasto × faturamento, ranking de campanhas e criativos, e a lista de vendas com as abas *Sem origem* e *Testes*. O detalhe de uma venda fica em `/dashboard/vendas/:saleId`; os endereços antigos `/vendas` redirecionam para cá.
 - **Campanhas** (`/w/:id/campanhas`): só as campanhas, sem KPIs gerais. Tabela Campanha › Conjunto › Anúncio com as métricas de cada linha e os controles de pausar, ativar e mudar orçamento, e a aba *Criativos*.
+- **Assistente IA** (`/w/:id/assistente`): chat que lê os números do período e dos filtros (os mesmos de Campanhas), explica o desempenho e sugere pausar, ativar ou mudar orçamento. Cada sugestão vira um botão que abre o mesmo diálogo de confirmação da tabela; nada muda na Meta sozinho.
 
 ## Status das etapas
 
@@ -52,6 +53,7 @@ No painel do Supabase → **Authentication → URL Configuration**, adicione a U
 | Supabase › Edge Functions › Secrets | `META_APP_SECRET` | chave secreta do app (troca do código e `appsecret_proof`) |
 | Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas* (com `ads_read`, `ads_management` e `business_management`); sem ele, usa `scope=ads_read,ads_management,business_management` |
 | Supabase › Edge Functions › Secrets | `APP_URL` | opcional: origens aceitas na volta do login, separadas por vírgula (padrão `https://nishiads.areadeteste.com,http://localhost:5173`) |
+| Supabase › Edge Functions › Secrets | `ANTHROPIC_API_KEY` | chave da API da Anthropic (console.anthropic.com › API Keys), usada pela função `assistant` |
 
 Segredos (token da Meta, segredos de webhook, chave VAPID privada) **nunca** vão para o frontend: ficam no Supabase Vault e nos secrets das Edge Functions.
 
@@ -104,6 +106,13 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 - **Pausar:** usa `setMetaObjectStatus` de `_shared/meta/write.ts` (o mesmo dos botões de Campanhas), com `source = "rule"`; cada tentativa fica em `meta_action_log`. Precisa da permissão `ads_management` na conexão com a Meta.
 - **Push:** um por alerta, ou um resumo quando chegam mais de 3 de uma vez. Respeita a nova preferência *Alertas das regras* e o horário de silêncio de cada membro (a pausa automática acontece mesmo no silêncio). No Chrome/Android o push tem o botão **Pausar**, que abre o alerta com a confirmação.
 - **Limites:** 30 regras por workspace; a prévia do formulário mostra até 50 itens.
+
+## Assistente IA
+
+- **Como funciona:** a tela monta o recorte atual (período, filtros, totais e período anterior, série diária, meta de ROAS, custos dos produtos e a árvore Campanha › Conjunto › Anúncio, até 40 campanhas e 25 conjuntos/anúncios por nível, pelos maiores gastos) e manda para a função `assistant`, que conversa com o Claude (`claude-opus-5-5`) e devolve a resposta em streaming.
+- **Sugestões:** o modelo só sugere pela ferramenta `sugerir_alteracao`; a função confere se o id existe no recorte e se a ação faz sentido (ex.: não pausa o que já está pausado, orçamento só onde há orçamento próprio). No app, o botão abre o diálogo de confirmação de Campanhas, que aplica pela `meta-actions` (owner/admin, com histórico em `meta_action_log`).
+- **Conversa:** fica no navegador, por workspace, presa ao recorte em que começou. Mudou o período ou os filtros, a tela avisa e oferece uma conversa nova.
+- **Limites e custo:** qualquer membro pode perguntar; 20 perguntas a cada 10 minutos e 200 por dia por pessoa. Cada resposta grava tokens e modelo em `assistant_usage`.
 
 ## Conversions API da Meta
 

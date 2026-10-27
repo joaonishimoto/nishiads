@@ -12,6 +12,7 @@ import {
   Menu,
   Plug,
   Settings,
+  Sparkles,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -54,12 +55,13 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
     icon: BellRing,
     badge: pending,
   };
+  const assistant: NavItem = { to: `${base}/assistente`, label: "Assistente IA", icon: Sparkles };
   const integrations: NavItem = { to: `${base}/integracoes`, label: "Integrações", icon: Plug };
   return {
     base,
     groups: [
       { label: "", items: [overview] },
-      { label: "Resultados", items: [dashboard, campaigns, alerts] },
+      { label: "Resultados", items: [dashboard, campaigns, assistant, alerts] },
       {
         label: "Recursos",
         items: [integrations, { to: `${base}/ajuda`, label: "Documentação", icon: BookOpen }],

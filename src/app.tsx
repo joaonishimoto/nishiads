@@ -21,6 +21,7 @@ import { HelpPage } from "@/features/help/help-page";
 import { OverviewPage } from "@/pages/overview";
 import { CampaignsPage } from "@/features/meta/campaigns-page";
 import { AlertsPage } from "@/features/alerts/alerts-page";
+import { AssistantPage } from "@/features/assistant/assistant-page";
 import { NotFoundPage } from "@/pages/not-found";
 import { ConfigErrorPage } from "@/pages/config-error";
 import { env } from "@/lib/env";
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
               { path: "vendas/:saleId", element: <LegacySalesRedirect /> },
               { path: "campanhas", element: <CampaignsPage /> },
               { path: "alertas", element: <AlertsPage /> },
+              { path: "assistente", element: <AssistantPage /> },
               { path: "integracoes", element: <IntegrationsPage /> },
               { path: "integracoes/logs", element: <WebhookLogsPage /> },
               { path: "ajuda", element: <HelpPage /> },
