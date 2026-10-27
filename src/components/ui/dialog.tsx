@@ -38,7 +38,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-0 z-dialog flex h-dvh max-h-dvh w-full max-w-none flex-col overflow-hidden border-0 bg-surface shadow-md duration-200 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-border data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+        "fixed inset-0 z-dialog flex h-dvh max-h-dvh w-full max-w-none flex-col overflow-hidden border-0 bg-surface shadow-md duration-200 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border sm:border-border data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
         className,
       )}
       {...props}
@@ -56,7 +56,7 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex shrink-0 flex-col gap-1 border-b border-border bg-surface px-5 py-5 pr-14 text-left sm:px-6",
+      "flex shrink-0 flex-col gap-1 border-b border-border bg-surface px-5 py-4 pr-14 text-left sm:px-6",
       className,
     )}
     {...props}

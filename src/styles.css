@@ -132,8 +132,11 @@
 
 :root {
   /* ---- Primitivas ---- */
+  --primitive-cream-25: #fdfcfa;
   --primitive-cream-50: #faf9f5;
+  --primitive-cream-75: #f6f4ee;
   --primitive-cream-100: #f3f1e8;
+  --primitive-cream-150: #eeebe2;
   --primitive-cream-200: #e9e6da;
   --primitive-cream-300: #d9d4c4;
   --primitive-cream-400: #bfb9a5;
@@ -182,21 +185,24 @@
   --surface-hover: var(--primitive-blue-50);
   --surface-selected: var(--primitive-blue-100);
 
-  --sidebar-background: var(--primitive-blue-900);
-  --sidebar-foreground: var(--primitive-cream-200);
-  --sidebar-active: var(--primitive-blue-700);
-  --sidebar-active-foreground: var(--primitive-neutral-0);
-  --sidebar-border: var(--primitive-blue-800);
-  --sidebar-muted: color-mix(in srgb, var(--primitive-cream-200) 60%, var(--primitive-blue-900));
-  --sidebar-hover: var(--primitive-blue-800);
-  --sidebar-indicator: var(--brand-cream);
+  /* Trilho lateral claro, no estilo Notion: creme suave, item atual em azul claro
+     (interação continua azul) e o nome da marca em Azul Nishi. */
+  --sidebar-background: var(--primitive-cream-75);
+  --sidebar-foreground: var(--primitive-neutral-700);
+  --sidebar-active: var(--primitive-blue-100);
+  --sidebar-active-foreground: var(--primitive-blue-900);
+  --sidebar-border: var(--primitive-cream-150);
+  --sidebar-muted: var(--primitive-neutral-600);
+  --sidebar-hover: var(--primitive-blue-50);
+  --sidebar-indicator: var(--primitive-blue-700);
 
-  --border: var(--primitive-cream-200);
-  --border-strong: var(--primitive-cream-300);
+  /* Linhas finas e discretas: a estrutura aparece sem pesar. */
+  --border: var(--primitive-cream-150);
+  --border-strong: var(--primitive-cream-200);
 
   --input-background: var(--primitive-neutral-0);
-  --input-border: var(--primitive-cream-400);
-  --input-border-hover: var(--primitive-neutral-400);
+  --input-border: var(--primitive-cream-300);
+  --input-border-hover: var(--primitive-cream-400);
 
   --primary: var(--primitive-blue-700);
   --primary-foreground: var(--primitive-neutral-0);
@@ -241,18 +247,21 @@
   /* ---- Geometria ---- */
   --radius-sm-token: 0.25rem;
   --radius-md-token: 0.375rem;
-  --radius-lg-token: 0.5rem;
-  --radius-xl-token: 0.75rem;
+  --radius-lg-token: 0.625rem;
+  --radius-xl-token: 0.875rem;
   --radius: var(--radius-md-token);
 
-  --shadow-xs-token: 0 1px 2px color-mix(in srgb, var(--primitive-neutral-900) 4%, transparent);
-  --shadow-sm-token: 0 1px 3px color-mix(in srgb, var(--primitive-neutral-900) 7%, transparent);
-  --shadow-md-token: 0 4px 12px color-mix(in srgb, var(--primitive-neutral-900) 8%, transparent);
+  /* Sombras quase imperceptíveis em repouso; só o que flutua (menus, modais) ganha profundidade. */
+  --shadow-xs-token: 0 1px 1px color-mix(in srgb, var(--primitive-neutral-900) 3%, transparent);
+  --shadow-sm-token: 0 1px 2px color-mix(in srgb, var(--primitive-neutral-900) 5%, transparent);
+  --shadow-md-token:
+    0 0 0 1px color-mix(in srgb, var(--primitive-neutral-900) 5%, transparent),
+    0 8px 24px -6px color-mix(in srgb, var(--primitive-neutral-900) 14%, transparent);
 
-  --sidebar-width: 252px;
-  --sidebar-width-collapsed: 76px;
-  --topbar-height: 64px;
-  --page-padding-x: 2rem;
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 48px;
+  --page-padding-x: 2.5rem;
   --page-padding-y: 2rem;
 
   /* ---- Movimento e camadas ---- */

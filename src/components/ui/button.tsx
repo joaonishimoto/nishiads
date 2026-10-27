@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { loadingClassName, loadingContent } from "@/components/ui/button-loading";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -15,18 +15,18 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground shadow-xs hover:bg-danger-hover active:bg-danger-strong",
         outline:
-          "border border-input bg-surface text-foreground shadow-xs hover:border-primary/40 hover:bg-surface-hover hover:text-primary active:bg-surface-selected",
+          "border border-border-strong bg-surface text-foreground hover:border-primary/30 hover:bg-surface-hover hover:text-primary active:bg-surface-selected",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary-hover active:bg-secondary-hover",
         ghost:
-          "text-foreground hover:bg-surface-hover hover:text-primary active:bg-surface-selected",
+          "text-muted-foreground hover:bg-surface-hover hover:text-primary active:bg-surface-selected",
         link: "text-primary underline decoration-primary/30 underline-offset-4 hover:decoration-primary",
       },
       size: {
-        default: "h-9 px-4 py-2 pointer-coarse:h-10",
-        sm: "h-8 gap-1.5 px-3 text-xs pointer-coarse:h-9 [&_svg]:size-3.5",
-        lg: "h-10 px-6 text-[15px]",
-        icon: "h-9 w-9 pointer-coarse:h-10 pointer-coarse:w-10",
+        default: "h-8 px-3 pointer-coarse:h-10",
+        sm: "h-7 gap-1 px-2.5 text-xs pointer-coarse:h-9 [&_svg]:size-3.5",
+        lg: "h-10 px-5 text-[15px]",
+        icon: "h-8 w-8 pointer-coarse:h-10 pointer-coarse:w-10",
       },
     },
     defaultVariants: {

@@ -13,7 +13,7 @@ const TabsList = React.forwardRef<
     ref={ref}
     className={cn(
       // Plain underline tabs: a 1 px baseline (inset shadow, so the scroll container never clips it) and the active tab's 2 px bar on top.
-      "flex w-full max-w-full items-end justify-start gap-6 overflow-x-auto scrollbar-none text-muted-foreground shadow-[inset_0_-1px_0_var(--border)]",
+      "flex w-full max-w-full items-end justify-start gap-5 overflow-x-auto scrollbar-none text-muted-foreground shadow-[inset_0_-1px_0_var(--border)]",
       className,
     )}
     {...props}
@@ -37,7 +37,7 @@ const TabsTrigger = React.forwardRef<
       });
     }}
     className={cn(
-      "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-1 pt-1.5 pb-2.5 pointer-coarse:pb-3 text-sm font-medium cursor-pointer transition-[color,border-color] duration-150 hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=active]:border-primary data-[state=active]:text-foreground [&_svg]:size-4",
+      "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-0.5 pt-1.5 pb-2 pointer-coarse:pb-3 text-sm font-medium cursor-pointer transition-[color,border-color] duration-150 hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=active]:border-primary data-[state=active]:text-foreground [&_svg]:size-4",
       className,
     )}
     {...props}
