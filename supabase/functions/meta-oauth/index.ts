@@ -39,7 +39,7 @@ function config() {
   const appSecret = Deno.env.get("META_APP_SECRET")?.trim();
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
   if (!appId || !appSecret || !supabaseUrl) return null;
-  const appUrls = (Deno.env.get("APP_URL") ?? "https://nishiads.areadeteste.com,http://localhost:5173")
+  const appUrls = (Deno.env.get("APP_URL") ?? "https://ads.nishistack.com,https://nishiads.areadeteste.com,http://localhost:5173")
     .split(",")
     .map((u) => u.trim().replace(/\/$/, ""))
     .filter(Boolean);

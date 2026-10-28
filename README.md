@@ -37,7 +37,7 @@ npx supabase link --project-ref <ref-do-projeto>
 npx supabase db push             # aplica supabase/migrations/*
 ```
 
-No painel do Supabase → **Authentication → URL Configuration**, adicione a URL do app (ex.: `https://nishiads.vercel.app`) em *Site URL* e `https://nishiads.vercel.app/redefinir-senha` em *Redirect URLs*.
+No painel do Supabase → **Authentication → URL Configuration**, coloque a URL do app (`https://ads.nishistack.com`) em *Site URL* e `https://ads.nishistack.com/**` em *Redirect URLs*.
 
 ## Variáveis de ambiente
 
@@ -52,7 +52,7 @@ No painel do Supabase → **Authentication → URL Configuration**, adicione a U
 | Supabase › Edge Functions › Secrets | `META_APP_ID` | ID do app da Meta |
 | Supabase › Edge Functions › Secrets | `META_APP_SECRET` | chave secreta do app (troca do código e `appsecret_proof`) |
 | Supabase › Edge Functions › Secrets | `META_LOGIN_CONFIG_ID` | opcional: id da configuração do *Facebook Login para Empresas* (com `ads_read`, `ads_management` e `business_management`); sem ele, usa `scope=ads_read,ads_management,business_management` |
-| Supabase › Edge Functions › Secrets | `APP_URL` | opcional: origens aceitas na volta do login, separadas por vírgula (padrão `https://nishiads.areadeteste.com,http://localhost:5173`) |
+| Supabase › Edge Functions › Secrets | `APP_URL` | opcional: origens aceitas na volta do login, separadas por vírgula (padrão `https://ads.nishistack.com,https://nishiads.areadeteste.com,http://localhost:5173`) |
 | Supabase › Edge Functions › Secrets | `ANTHROPIC_API_KEY` | chave da API da Anthropic (console.anthropic.com › API Keys), usada pela função `assistant` |
 
 Segredos (token da Meta, segredos de webhook, chave VAPID privada) **nunca** vão para o frontend: ficam no Supabase Vault e nos secrets das Edge Functions.
