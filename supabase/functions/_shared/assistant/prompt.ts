@@ -206,29 +206,51 @@ export function checkProposal(
   };
 }
 
-export const historySchema = z
-  .array(
-    z.object({
-      role: z.enum(["user", "assistant"]),
-      content: z.string().min(1).max(LIMITS.messageChars),
-    }),
-  )
-  .min(1)
-  .max(LIMITS.messages)
-  .refine(
-    (msgs) =>
-      msgs[0]!.role === "user" &&
-      msgs.at(-1)!.role === "user" &&
-      msgs.every((m, i) => i === 0 || m.role !== msgs[i - 1]!.role),
-    "A conversa precisa alternar usuário e assistente, começando e terminando no usuário.",
-  );
+export const questionSchema = z.string().trim().min(1).max(LIMITS.messageChars);
+
+/** Mensagem como fica no banco (assistant_messages). */
+export type StoredMessage = {
+  role: "user" | "assistant";
+  content: string;
+  proposals: Proposal[];
+  status: "streaming" | "done" | "error" | "stopped";
+};
+
+const ACTION_LABEL = { pause: "pausar", activate: "ativar", set_budget: "mudar orçamento de" };
+
+/**
+ * Histórico para a API a partir do banco: sem respostas vazias ou com erro, perguntas
+ * seguidas juntas (a API pede usuário e assistente alternados), as sugestões já feitas por
+ * escrito e só as últimas mensagens, sempre começando por uma pergunta.
+ */
+export function historyFromRows(
+  rows: StoredMessage[],
+  max = LIMITS.messages - 1,
+): { role: "user" | "assistant"; content: string }[] {
+  const out: { role: "user" | "assistant"; content: string }[] = [];
+  for (const m of rows) {
+    if (m.role === "assistant" && (m.status === "error" || m.status === "streaming")) continue;
+    const text =
+      m.proposals.length > 0
+        ? `${m.content}\n\n[Sugestões deixadas para confirmar: ${m.proposals
+            .map((p) => `${ACTION_LABEL[p.action]} “${p.name}”`)
+            .join("; ")}]`
+        : m.content;
+    if (!text.trim()) continue;
+    const last = out.at(-1);
+    if (last && last.role === m.role) last.content = `${last.content}\n\n${text}`;
+    else out.push({ role: m.role, content: text });
+  }
+  const recent = out.slice(-max);
+  return recent[0]?.role === "assistant" ? recent.slice(1) : recent;
+}
 
 /**
  * Mensagens para a API: os dados do app vão como primeiro bloco da primeira pergunta.
  * Assim o começo da conversa não muda entre as perguntas e fica no cache.
  */
 export function buildMessages(
-  history: z.infer<typeof historySchema>,
+  history: { role: "user" | "assistant"; content: string }[],
   contextJson: string,
 ): Anthropic.Beta.BetaMessageParam[] {
   return history.map((m, i) =>

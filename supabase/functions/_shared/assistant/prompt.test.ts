@@ -4,7 +4,7 @@ import {
   checkProposal,
   contextSchema,
   echoContent,
-  historySchema,
+  historyFromRows,
   indexObjects,
 } from "./prompt.ts";
 
@@ -88,21 +88,47 @@ describe("checkProposal", () => {
   });
 });
 
-describe("historySchema", () => {
-  it("exige alternância começando e terminando no usuário", () => {
-    expect(historySchema.safeParse([{ role: "user", content: "oi" }]).success).toBe(true);
-    expect(
-      historySchema.safeParse([
-        { role: "user", content: "oi" },
-        { role: "assistant", content: "olá" },
-      ]).success,
-    ).toBe(false);
-    expect(
-      historySchema.safeParse([
-        { role: "user", content: "a" },
-        { role: "user", content: "b" },
-      ]).success,
-    ).toBe(false);
+describe("historyFromRows", () => {
+  const row = (role: "user" | "assistant", content: string, over = {}) => ({
+    role,
+    content,
+    proposals: [],
+    status: "done" as const,
+    ...over,
+  });
+
+  it("pula respostas com erro, junta perguntas seguidas e escreve as sugestões", () => {
+    const out = historyFromRows([
+      row("user", "a"),
+      row("assistant", "", { status: "error" }),
+      row("user", "b"),
+      row("assistant", "c", {
+        proposals: [
+          {
+            level: "ad",
+            id: "a1",
+            name: "Vídeo 1",
+            action: "pause",
+            budget_cents: null,
+            budget_kind: null,
+            reason: "r",
+          },
+        ],
+      }),
+      row("user", "d"),
+    ]);
+    expect(out).toEqual([
+      { role: "user", content: "a\n\nb" },
+      { role: "assistant", content: "c\n\n[Sugestões deixadas para confirmar: pausar “Vídeo 1”]" },
+      { role: "user", content: "d" },
+    ]);
+  });
+
+  it("corta o começo sem deixar o assistente em primeiro", () => {
+    const rows = Array.from({ length: 10 }, (_, i) => row(i % 2 ? "assistant" : "user", `m${i}`));
+    const out = historyFromRows([...rows, row("user", "fim")], 4);
+    expect(out[0]!.role).toBe("user");
+    expect(out.at(-1)!.content).toBe("fim");
   });
 });
 
