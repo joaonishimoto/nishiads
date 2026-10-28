@@ -8,6 +8,6 @@ export function vapidFromEnv(): VapidKeys | null {
   return {
     publicKey,
     privateKey,
-    subject: Deno.env.get("VAPID_SUBJECT")?.trim() || "https://nishiads.areadeteste.com",
+    subject: Deno.env.get("VAPID_SUBJECT")?.trim() || "https://ads.nishistack.com",
   };
 }
