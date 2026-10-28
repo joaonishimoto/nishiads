@@ -31,12 +31,15 @@ export function BrandSymbol({ className, title }: { className?: string; title?: 
   );
 }
 
-/** Ícone de app: quadrado arredondado azul com o símbolo em creme. */
+/**
+ * Ícone de app: quadrado arredondado azul com o símbolo em creme.
+ * Mesma proporção do ícone Nishistack (raio 112 e símbolo de 240 centrado, numa grade de 512): igual a public/favicon.svg.
+ */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={cn("block h-8 w-8 shrink-0", className)} role="img" aria-label="Nishistack - ADS">
-      <rect width="32" height="32" rx="7" className="fill-brand" />
-      <g className="fill-brand-cream" transform="translate(7 7) scale(0.75)">
+    <svg viewBox="0 0 512 512" className={cn("block h-8 w-8 shrink-0", className)} role="img" aria-label="Nishistack - ADS">
+      <rect width="512" height="512" rx="112" className="fill-brand" />
+      <g className="fill-brand-cream" transform="translate(136 136) scale(10)">
         <SymbolShapes />
       </g>
     </svg>
