@@ -96,6 +96,27 @@ type AdsetRow = AdEntityBase & BudgetColumns & { campaign_id: string };
 export type MetaActionLevel = "campaign" | "adset" | "ad";
 export type MetaActionKind = "pause" | "activate" | "set_budget";
 
+export type AssistantMessageStatus = "streaming" | "done" | "error" | "stopped";
+
+type AssistantConversationRow = Timestamps & {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  title: string;
+  context: Json;
+  scope: string;
+};
+
+type AssistantMessageRow = Timestamps & {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  proposals: Json;
+  status: AssistantMessageStatus;
+  error: string | null;
+};
+
 type MetaActionLogRow = {
   id: string;
   workspace_id: string;
@@ -390,6 +411,11 @@ export type Database = {
         AdRow,
         "workspace_id" | "ad_account_id" | "campaign_id" | "adset_id" | "external_id" | "name"
       >;
+      assistant_conversations: Table<
+        AssistantConversationRow,
+        "workspace_id" | "user_id" | "title" | "context" | "scope"
+      >;
+      assistant_messages: Table<AssistantMessageRow, "conversation_id" | "role">;
       meta_action_log: Table<
         MetaActionLogRow,
         "workspace_id" | "level" | "object_id" | "external_id" | "action" | "ok",

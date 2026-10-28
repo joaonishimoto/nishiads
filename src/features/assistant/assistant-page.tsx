@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 import {
   ArrowUp,
   Check,
@@ -7,22 +8,46 @@ import {
   CirclePause,
   CirclePlay,
   History,
+  MessageSquare,
   Plug,
-  RotateCcw,
+  Plus,
   Sparkles,
   Square,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { LoadError, PageHeader, PageSkeleton, Panel, Status } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { MetaControlsProvider, formatBudget, useMetaControls } from "@/features/meta/controls";
 import { FilterBar, useResultFilters } from "@/features/results/filters";
 import { useResults } from "@/features/results/use-results";
 import { useRoasTarget } from "@/features/results/components";
+import { timeAgo } from "@/features/results/recent-sales";
 import type { TreeNode } from "@/features/results/metrics";
 import { buildAssistantContext, findInTree } from "@/features/assistant/context";
-import { useAssistantChat, type ChatMessage, type Proposal } from "@/features/assistant/api";
+import {
+  AssistantError,
+  isWriting,
+  readLastConversation,
+  useAsk,
+  useConversation,
+  useConversations,
+  useDeleteConversation,
+  useMessages,
+  useStop,
+  writeLastConversation,
+  type ChatMessage,
+  type ConversationSummary,
+  type Proposal,
+} from "@/features/assistant/api";
 import { Markdown } from "@/features/assistant/markdown";
 import { PERIOD_LABELS } from "@/lib/period";
 import { cn } from "@/lib/utils";
@@ -48,17 +73,39 @@ function AssistantContent() {
   const { workspace } = useWorkspace();
   const base = `/w/${workspace.id}`;
   const filters = useResultFilters();
-  const chat = useAssistantChat(workspace.id);
+  const [target] = useRoasTarget(workspace.id);
+
+  // Conversa aberta: a última usada, guardada no navegador; as mensagens ficam no banco.
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    readLastConversation(workspace.id),
+  );
+  const select = (id: string | null) => {
+    setSelectedId(id);
+    writeLastConversation(workspace.id, id);
+  };
+  const conversations = useConversations(workspace.id);
+  const conversation = useConversation(selectedId);
+  const messages = useMessages(selectedId);
+  const ask = useAsk(workspace.id);
+  const stop = useStop();
+  const remove = useDeleteConversation(workspace.id);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // Pergunta enviada enquanto a conversa nova ainda está sendo criada.
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+
+  // Conversa apagada ou de outro workspace: volta para uma nova.
+  useEffect(() => {
+    if (selectedId && conversation.isSuccess && !conversation.data) select(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, conversation.isSuccess, conversation.data]);
+
+  const list = messages.data ?? [];
   // Objetos sugeridos ficam na árvore mesmo sem gasto no período (ex.: acabou de pausar).
   const suggested = useMemo(
-    () =>
-      new Set(
-        (chat.conversation?.messages ?? []).flatMap((m) => m.proposals.map((p) => p.id)),
-      ) as ReadonlySet<string>,
-    [chat.conversation],
+    () => new Set(list.flatMap((m) => m.proposals.map((p) => p.id))) as ReadonlySet<string>,
+    [list],
   );
   const results = useResults(filters, { tree: true, keep: suggested });
-  const [target] = useRoasTarget(workspace.id);
 
   const scope = [
     filters.period,
@@ -95,28 +142,79 @@ function AssistantContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c, scope, target, results.lastSync, results.products, results.tracked]);
 
+  const writing = list.find((m) => isWriting(m)) ?? null;
+  const busy = ask.isPending || !!writing;
+
+  const send = (question: string) => {
+    if (!fresh || busy) return;
+    setPendingQuestion(question);
+    ask.mutate(
+      { question, conversationId: selectedId, fresh },
+      {
+        onSuccess: ({ conversation_id }) => {
+          if (conversation_id !== selectedId) select(conversation_id);
+        },
+        onError: (error) =>
+          toast.error(
+            error instanceof AssistantError
+              ? error.message
+              : "Não foi possível falar com o assistente agora. Tente de novo.",
+          ),
+        onSettled: () => setPendingQuestion(null),
+      },
+    );
+  };
+
+  const historyList = (
+    <ConversationList
+      items={conversations.data ?? []}
+      selectedId={selectedId}
+      timezone={workspace.timezone}
+      onSelect={(id) => {
+        select(id);
+        setHistoryOpen(false);
+      }}
+      onDelete={(id) =>
+        remove.mutate(id, {
+          onSuccess: () => {
+            if (id === selectedId) select(null);
+          },
+          onError: () => toast.error("Não foi possível apagar a conversa."),
+        })
+      }
+    />
+  );
+
   const header = (
     <PageHeader
       title="Assistente"
       subtitle="Pergunte sobre gasto, ROAS, CPA e lucro das campanhas. Ele explica os números do período e sugere mudanças que você confirma antes de aplicar."
       actions={
-        chat.conversation && (
-          <Button variant="outline" onClick={chat.reset}>
-            <RotateCcw />
-            Nova conversa
+        <>
+          <Button variant="outline" className="lg:hidden" onClick={() => setHistoryOpen(true)}>
+            <History />
+            Histórico
           </Button>
-        )
+          {selectedId && (
+            <Button variant="outline" onClick={() => select(null)}>
+              <Plus />
+              Nova conversa
+            </Button>
+          )}
+        </>
       }
     />
   );
 
   if (results.isPending && !c) return <PageSkeleton variant="table" />;
 
-  const conversation = chat.conversation;
-  const stale = conversation && conversation.scope !== scope;
-  const ask = (text: string) => {
-    if (fresh) void chat.send(text, fresh);
-  };
+  const current = selectedId ? conversation.data : null;
+  const stale = current && current.scope && current.scope !== scope;
+  // Enquanto a pergunta vai para o servidor, ela já aparece na tela.
+  const shown: ChatMessage[] =
+    pendingQuestion && !list.some((m) => m.role === "user" && m.content === pendingQuestion)
+      ? [...list, pendingMessage(pendingQuestion)]
+      : list;
 
   return (
     <div className="space-y-5">
@@ -156,33 +254,133 @@ function AssistantContent() {
         <p className="flex flex-col gap-2 rounded-lg bg-info/10 px-3 py-2 text-sm text-info-strong sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-start gap-2">
             <History className="mt-0.5 h-4 w-4 shrink-0" />
-            Esta conversa usa os números de {conversation.context.periodo.rotulo.toLowerCase()} (
-            {formatDay(conversation.context.periodo.de)} a{" "}
-            {formatDay(conversation.context.periodo.ate)}). Para analisar o recorte atual, comece
-            uma nova conversa.
+            Esta conversa usa os números de {current.context.periodo.rotulo.toLowerCase()} (
+            {formatDay(current.context.periodo.de)} a {formatDay(current.context.periodo.ate)}).
+            Para analisar o recorte atual, comece uma nova conversa.
           </span>
-          <Button size="sm" variant="outline" className="shrink-0 bg-surface" onClick={chat.reset}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 bg-surface"
+            onClick={() => select(null)}
+          >
             Nova conversa
           </Button>
         </p>
       )}
 
-      <Panel className="flex flex-col">
-        <Messages
-          messages={conversation?.messages ?? []}
-          streaming={chat.streaming}
-          thinking={chat.thinking}
-          tree={c?.tree ?? []}
-          onAsk={ask}
-          ready={!!fresh}
-        />
-        <Composer disabled={!fresh} streaming={chat.streaming} onSend={ask} onStop={chat.stop} />
-      </Panel>
+      <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <Panel title="Histórico" className="hidden lg:block">
+          {historyList}
+        </Panel>
+        <Panel className="flex min-w-0 flex-col">
+          <Messages
+            messages={shown}
+            loading={!!selectedId && messages.isPending}
+            tree={c?.tree ?? []}
+            onAsk={send}
+            ready={!!fresh}
+          />
+          <Composer
+            disabled={!fresh}
+            streaming={busy}
+            onSend={send}
+            onStop={() =>
+              writing &&
+              selectedId &&
+              stop.mutate({ messageId: writing.id, conversationId: selectedId })
+            }
+          />
+        </Panel>
+      </div>
       <p className="text-center text-xs text-muted-foreground">
         O assistente usa IA e pode errar. Confira os números antes de mudar campanhas; nada é
-        alterado na Meta sem a sua confirmação.
+        alterado na Meta sem a sua confirmação. Pode sair da tela: a resposta continua sendo escrita
+        e fica no histórico.
       </p>
+
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
+          <SheetHeader className="border-b border-border p-4">
+            <SheetTitle>Histórico</SheetTitle>
+            <SheetDescription>Suas conversas com o assistente neste workspace.</SheetDescription>
+          </SheetHeader>
+          <div className="overflow-y-auto">{historyList}</div>
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+function pendingMessage(question: string): ChatMessage {
+  const now = new Date().toISOString();
+  return {
+    id: "pendente",
+    role: "user",
+    content: question,
+    proposals: [],
+    status: "done",
+    error: null,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function ConversationList({
+  items,
+  selectedId,
+  timezone,
+  onSelect,
+  onDelete,
+}: {
+  items: ConversationSummary[];
+  selectedId: string | null;
+  timezone: string;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+        As conversas aparecem aqui.
+      </p>
+    );
+  }
+  return (
+    <ul className="max-h-[calc(100dvh-22rem)] space-y-px overflow-y-auto p-2">
+      {items.map((item) => (
+        <li key={item.id} className="group relative">
+          <button
+            type="button"
+            onClick={() => onSelect(item.id)}
+            className={cn(
+              "flex w-full items-start gap-2 rounded-md px-2 py-2 pr-9 text-left text-sm transition-colors hover:bg-surface-hover",
+              item.id === selectedId && "bg-surface-selected",
+            )}
+          >
+            <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0">
+              <span className="line-clamp-2 text-foreground">{item.title}</span>
+              <span className="text-xs text-muted-foreground">
+                {timeAgo(item.updated_at, timezone)}
+              </span>
+            </span>
+          </button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label="Apagar conversa"
+            className="absolute top-1.5 right-1 h-7 w-7 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+            onClick={() => {
+              if (window.confirm("Apagar esta conversa?")) onDelete(item.id);
+            }}
+          >
+            <Trash2 />
+          </Button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -193,15 +391,13 @@ function formatDay(ymd: string): string {
 
 function Messages({
   messages,
-  streaming,
-  thinking,
+  loading,
   tree,
   onAsk,
   ready,
 }: {
   messages: ChatMessage[];
-  streaming: boolean;
-  thinking: boolean;
+  loading: boolean;
   tree: TreeNode[];
   onAsk: (text: string) => void;
   ready: boolean;
@@ -219,7 +415,9 @@ function Messages({
       className="h-[calc(100dvh-26rem)] min-h-80 overflow-y-auto px-4 py-4"
       aria-live="polite"
     >
-      {messages.length === 0 ? (
+      {loading ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">Carregando a conversa…</p>
+      ) : messages.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center text-center">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-primary">
             <Sparkles className="h-5 w-5" strokeWidth={1.75} />
@@ -256,40 +454,56 @@ function Messages({
                 </p>
               </div>
             ) : (
-              <div key={m.id} className="flex gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-                  <Sparkles className="h-3.5 w-3.5" />
-                </span>
-                <div className="min-w-0 flex-1 space-y-3">
-                  {m.content ? (
-                    <Markdown text={m.content} />
-                  ) : (
-                    streaming &&
-                    m === last &&
-                    thinking && (
-                      <p className="animate-pulse text-sm text-muted-foreground">
-                        Analisando os números…
-                      </p>
-                    )
-                  )}
-                  {m.proposals.length > 0 && (
-                    <div className="space-y-2">
-                      {m.proposals.map((p, i) => (
-                        <ProposalCard key={`${p.id}-${i}`} proposal={p} tree={tree} />
-                      ))}
-                    </div>
-                  )}
-                  {m.error && (
-                    <p className="rounded-md bg-danger/8 px-3 py-2 text-sm text-danger-strong">
-                      {m.error}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <AssistantMessage key={m.id} message={m} tree={tree} />
             ),
           )}
+          {last?.role === "user" && <Thinking />}
         </div>
       )}
+    </div>
+  );
+}
+
+function Thinking() {
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+        <Sparkles className="h-3.5 w-3.5" />
+      </span>
+      <p className="animate-pulse pt-1 text-sm text-muted-foreground">Analisando os números…</p>
+    </div>
+  );
+}
+
+function AssistantMessage({ message: m, tree }: { message: ChatMessage; tree: TreeNode[] }) {
+  const writing = isWriting(m);
+  // "Escrevendo" sem novidade há muito tempo: a resposta caiu no meio.
+  const dropped = m.status === "streaming" && !writing;
+  if (writing && !m.content && m.proposals.length === 0) return <Thinking />;
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+        <Sparkles className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0 flex-1 space-y-3">
+        {m.content && <Markdown text={m.content} />}
+        {m.proposals.length > 0 && (
+          <div className="space-y-2">
+            {m.proposals.map((p, i) => (
+              <ProposalCard key={`${p.id}-${i}`} proposal={p} tree={tree} />
+            ))}
+          </div>
+        )}
+        {writing && <p className="animate-pulse text-xs text-muted-foreground">Escrevendo…</p>}
+        {m.status === "stopped" && (
+          <p className="text-xs text-muted-foreground">Resposta interrompida por você.</p>
+        )}
+        {(m.status === "error" || dropped) && (
+          <p className="rounded-md bg-danger/8 px-3 py-2 text-sm text-danger-strong">
+            {m.error ?? "A resposta foi interrompida. Pergunte de novo."}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

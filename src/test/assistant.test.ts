@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeTotals, type NodeMetrics, type TreeNode } from "@/features/results/metrics";
 import { buildAssistantContext, CONTEXT_LIMITS, findInTree } from "@/features/assistant/context";
-import { collapse, toApiMessages, type ChatMessage } from "@/features/assistant/api";
+import { isWriting, STALE_MS } from "@/features/assistant/api";
 
 const metrics = (over: Partial<NodeMetrics> = {}): NodeMetrics => ({
   spendCents: 0,
@@ -108,39 +108,12 @@ describe("findInTree", () => {
   });
 });
 
-describe("histórico para a API", () => {
-  const msg = (role: ChatMessage["role"], content: string, over: Partial<ChatMessage> = {}) =>
-    ({ id: content, role, content, proposals: [], ...over }) as ChatMessage;
-
-  it("junta perguntas seguidas e registra as sugestões por escrito", () => {
-    const out = toApiMessages([
-      msg("user", "a"),
-      msg("assistant", "b", {
-        proposals: [
-          {
-            level: "ad",
-            id: "ad1",
-            name: "Vídeo 1",
-            action: "pause",
-            budget_cents: null,
-            budget_kind: null,
-            reason: "r",
-          },
-        ],
-      }),
-      msg("user", "c"),
-      msg("user", "d"),
-    ]);
-    expect(out.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
-    expect(out[1]!.content).toContain("pausar “Vídeo 1”");
-    expect(out[2]!.content).toBe("c\n\nd");
-  });
-
-  it("corta o começo sem deixar o assistente em primeiro", () => {
-    const long = Array.from({ length: 10 }, (_, i) => msg(i % 2 ? "assistant" : "user", `m${i}`));
-    const out = toApiMessages([...long, msg("user", "fim")], 4);
-    expect(out[0]!.role).toBe("user");
-    expect(out.at(-1)!.content).toBe("fim");
-    expect(collapse([]).length).toBe(0);
+describe("isWriting", () => {
+  it("só conta como escrevendo enquanto a resposta recebe novidades", () => {
+    const now = Date.parse("2026-10-28T12:00:00Z");
+    const at = (ms: number) => new Date(now - ms).toISOString();
+    expect(isWriting({ status: "streaming", updated_at: at(2_000) }, now)).toBe(true);
+    expect(isWriting({ status: "streaming", updated_at: at(STALE_MS + 1) }, now)).toBe(false);
+    expect(isWriting({ status: "done", updated_at: at(0) }, now)).toBe(false);
   });
 });

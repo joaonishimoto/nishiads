@@ -109,9 +109,10 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 
 ## Assistente IA
 
-- **Como funciona:** a tela monta o recorte atual (período, filtros, totais e período anterior, série diária, meta de ROAS, custos dos produtos e a árvore Campanha › Conjunto › Anúncio, até 40 campanhas e 25 conjuntos/anúncios por nível, pelos maiores gastos) e manda para a função `assistant`, que conversa com o Claude (`claude-opus-5-5`) e devolve a resposta em streaming.
+- **Como funciona:** a tela monta o recorte atual (período, filtros, totais e período anterior, série diária, meta de ROAS, custos dos produtos e a árvore Campanha › Conjunto › Anúncio, até 40 campanhas e 25 conjuntos/anúncios por nível, pelos maiores gastos) e manda para a função `assistant`, que conversa com o Claude (`claude-opus-5-5`) e grava a resposta no banco enquanto ela é escrita.
 - **Sugestões:** o modelo só sugere pela ferramenta `sugerir_alteracao`; a função confere se o id existe no recorte e se a ação faz sentido (ex.: não pausa o que já está pausado, orçamento só onde há orçamento próprio). No app, o botão abre o diálogo de confirmação de Campanhas, que aplica pela `meta-actions` (owner/admin, com histórico em `meta_action_log`).
-- **Conversa:** fica no navegador, por workspace, presa ao recorte em que começou. Mudou o período ou os filtros, a tela avisa e oferece uma conversa nova.
+- **Conversa e histórico:** ficam no banco (`assistant_conversations` e `assistant_messages`), cada pessoa vê só as suas, com a lista de conversas na lateral (no celular, botão *Histórico*). Cada conversa fica presa ao recorte em que começou; mudou o período ou os filtros, a tela avisa e oferece uma conversa nova.
+- **Segundo plano:** a função grava a pergunta, cria a resposta com status `streaming` e devolve na hora; o texto vai sendo salvo enquanto o modelo escreve (`EdgeRuntime.waitUntil`). Sair da tela não interrompe; ao voltar, o app relê a conversa (a cada segundo enquanto há resposta sendo escrita). *Parar* marca a resposta como `stopped` e a geração para na próxima gravação. Respostas cortadas pelo limite de tempo das Edge Functions ficam como erro.
 - **Limites e custo:** qualquer membro pode perguntar; 20 perguntas a cada 10 minutos e 200 por dia por pessoa. Cada resposta grava tokens e modelo em `assistant_usage`.
 
 ## Conversions API da Meta
