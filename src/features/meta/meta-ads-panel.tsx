@@ -122,7 +122,7 @@ export function MetaAdsPanel() {
                 Conectar Meta Ads
               </Button>
               <p className="text-xs text-muted-foreground">
-                Só leitura: o nishiADS não altera anúncios.
+                Só leitura: o Nishistack - ADS não altera anúncios.
               </p>
             </div>
           ) : (
@@ -323,7 +323,7 @@ function ConnectionRow({
                   <AlertDialogTitle>Desconectar a Meta?</AlertDialogTitle>
                   <AlertDialogDescription>
                     O token de acesso é apagado e a sincronização para. Campanhas, criativos e
-                    gastos já sincronizados continuam no Nishiads.
+                    gastos já sincronizados continuam no Nishistack - ADS.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

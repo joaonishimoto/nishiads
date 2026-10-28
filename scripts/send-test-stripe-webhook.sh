@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Envia um webhook de teste da Stripe, assinado como a Stripe assina (Stripe-Signature: t=...,v1=HMAC-SHA256).
 #
-# Uso: scripts/send-test-stripe-webhook.sh "<URL do webhook copiada no Nishiads>" "whsec_..." [payload.json]
+# Uso: scripts/send-test-stripe-webhook.sh "<URL do webhook copiada no Nishistack - ADS>" "whsec_..." [payload.json]
 set -euo pipefail
 URL="$1"
 SECRET="$2"

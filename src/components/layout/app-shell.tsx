@@ -95,7 +95,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
             collapsed ? "pointer-events-none w-0 overflow-hidden opacity-0" : "opacity-100",
           )}
         >
-          <BrandLogo name="Nishistack - ADS" className="text-[20px]" />
+          <BrandLogo className="text-[20px]" />
         </div>
       </div>
 

@@ -164,13 +164,13 @@ export async function buildTestEvent(
     user_data: {
       em: [email],
       external_id: [email],
-      client_user_agent: "nishiADS (evento de teste)",
+      client_user_agent: "Nishistack - ADS (evento de teste)",
     },
     custom_data: {
       currency: "BRL",
       value: 1,
       order_id: "teste",
-      content_name: "Evento de teste do nishiADS",
+      content_name: "Evento de teste do Nishistack - ADS",
     },
   };
   return event;
