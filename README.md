@@ -1,4 +1,4 @@
-# Nishiads
+# Nishistack - ADS
 
 Vendas de infoprodutos e e-commerce atribuídas à **campanha, conjunto e criativo** da Meta Ads, com notificação em tempo real e lucro por anúncio. PWA em pt-BR, BRL, fuso America/Sao_Paulo.
 
@@ -72,7 +72,7 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
   - `invoice.paid`
   - `charge.refunded`
   - `charge.dispute.created`
-- Salve no Nishiads o *signing secret* (`whsec_...`) e uma chave restrita (`rk_live_...`) com leitura em Checkout Sessions, Invoices e Charges. As duas ficam juntas no Vault.
+- Salve no Nishistack - ADS o *signing secret* (`whsec_...`) e uma chave restrita (`rk_live_...`) com leitura em Checkout Sessions, Invoices e Charges. As duas ficam juntas no Vault.
 - A venda é identificada pelo PaymentIntent, que liga o pagamento ao reembolso e ao chargeback.
 - Assinaturas entram por `invoice.paid`, inclusive as renovações. A chave de API resolve fatura → PaymentIntent (Invoice Payments, API basil+) e busca as UTMs da Checkout Session da assinatura.
 - **UTMs:** o checkout precisa mandar `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` e `utm_term` em `metadata` ao criar a Checkout Session, e em `subscription_data.metadata` para as renovações.

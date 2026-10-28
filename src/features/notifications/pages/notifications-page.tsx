@@ -69,7 +69,7 @@ function ThisDevicePanel() {
     return (
       <Panel title={title} description={description}>
         <Notice>
-          No iPhone e no iPad, as notificações só funcionam com o nishiADS instalado. Toque em Compartilhar ›
+          No iPhone e no iPad, as notificações só funcionam com o Nishistack - ADS instalado. Toque em Compartilhar ›
           “Adicionar à Tela de Início”, abra o app por lá e volte a esta tela.
         </Notice>
       </Panel>

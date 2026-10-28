@@ -475,7 +475,7 @@ function BlockedDialog({
           </AlertDialogTitle>
           <AlertDialogDescription>
             {reason === "needs_scope"
-              ? "Para pausar, ativar e mudar orçamento por aqui, o Nishiads precisa da permissão de gerenciar anúncios. Reconecte a Meta em Integrações e aceite todas as permissões. Leva menos de um minuto."
+              ? "Para pausar, ativar e mudar orçamento por aqui, o Nishistack - ADS precisa da permissão de gerenciar anúncios. Reconecte a Meta em Integrações e aceite todas as permissões. Leva menos de um minuto."
               : "O acesso a esta conta de anúncio expirou. Reconecte em Integrações para voltar a controlar e sincronizar os anúncios."}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -593,7 +593,7 @@ export function describeAction(entry: ActionLogEntry, currency: string): string 
   return `Mudou o orçamento ${LEVEL_OF[entry.level]} ${name}${from ? ` de ${from}` : ""}${to ? ` para ${to}` : ""}`;
 }
 
-/** Histórico das alterações feitas pelo Nishiads na Meta (botões e regras). */
+/** Histórico das alterações feitas pelo Nishistack - ADS na Meta (botões e regras). */
 export function ActionHistoryButton({ currency }: { currency: string }) {
   const { workspace } = useWorkspace();
   const [open, setOpen] = useState(false);
@@ -609,7 +609,7 @@ export function ActionHistoryButton({ currency }: { currency: string }) {
           <DialogHeader>
             <DialogTitle>Histórico de alterações</DialogTitle>
             <DialogDescription>
-              O que foi pausado, ativado ou mudou de orçamento pelo Nishiads. Mudanças feitas direto
+              O que foi pausado, ativado ou mudou de orçamento pelo Nishistack - ADS. Mudanças feitas direto
               no Gerenciador de Anúncios não aparecem aqui.
             </DialogDescription>
           </DialogHeader>

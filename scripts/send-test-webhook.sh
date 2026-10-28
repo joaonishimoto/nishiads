@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Envia um webhook de teste da Kiwify, assinado como a Kiwify assina (HMAC-SHA1 do corpo, ?signature=).
 #
-# Uso: scripts/send-test-webhook.sh "<URL do webhook copiada no Nishiads>" "<token do webhook>" [payload.json]
+# Uso: scripts/send-test-webhook.sh "<URL do webhook copiada no Nishistack - ADS>" "<token do webhook>" [payload.json]
 #   ex.: scripts/send-test-webhook.sh \
 #          "https://<ref>.supabase.co/functions/v1/webhooks/kiwify/<token-da-url>" "meu-token-kiwify"
 set -euo pipefail

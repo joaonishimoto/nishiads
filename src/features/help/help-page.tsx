@@ -23,7 +23,7 @@ import { META_URL_PARAMETERS } from "@/lib/utm";
 import { cn } from "@/lib/utils";
 
 const CAPTURE_SNIPPET = `<script>
-  // nishiADS: guarda as UTMs do anúncio por 30 dias.
+  // Nishistack - ADS: guarda as UTMs do anúncio por 30 dias.
   (function () {
     var keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
     var params = new URLSearchParams(location.search);
@@ -107,7 +107,7 @@ const utms = pickUtms(body.utms);
 const session = await stripe.checkout.sessions.create({
   mode: "subscription", // ou "payment" para venda avulsa
   line_items: [{ price: priceId, quantity: 1 }],
-  // Lido pelo nishiADS em checkout.session.completed (venda avulsa)
+  // Lido pelo Nishistack - ADS em checkout.session.completed (venda avulsa)
   // e quando a assinatura nasce desta sessão.
   metadata: { ...utms, product_name: "Nome do produto" },
   // Só no modo assinatura: as renovações (invoice.paid) herdam a origem.
@@ -117,7 +117,7 @@ const session = await stripe.checkout.sessions.create({
 });`;
 
 const KIWIFY_LINK_SNIPPET = `<script>
-  // nishiADS: repassa as UTMs da página para os links de checkout da Kiwify.
+  // Nishistack - ADS: repassa as UTMs da página para os links de checkout da Kiwify.
   document.addEventListener("DOMContentLoaded", function () {
     var params = new URLSearchParams(location.search);
     document.querySelectorAll('a[href*="kiwify.com.br"]').forEach(function (a) {
@@ -332,7 +332,7 @@ const FLOW: { icon: LucideIcon; title: string; text: string }[] = [
   {
     icon: Webhook,
     title: "Webhook",
-    text: "O checkout avisa a venda com as UTMs e o nishiADS liga ao anúncio.",
+    text: "O checkout avisa a venda com as UTMs e o Nishistack - ADS liga ao anúncio.",
   },
 ];
 
@@ -496,7 +496,7 @@ export function HelpPage() {
           >
             <AttributionFlow />
             <p>
-              As UTMs usam o formato <C>nome|id</C>. O nishiADS usa o <strong>id</strong> depois do{" "}
+              As UTMs usam o formato <C>nome|id</C>. O Nishistack - ADS usa o <strong>id</strong> depois do{" "}
               <C>|</C>, então a atribuição continua funcionando se você renomear campanhas ou
               anúncios. Sem id, ele tenta pelo nome, desde que seja único.
             </p>
@@ -566,7 +566,7 @@ export function HelpPage() {
             id="meta-ads"
             title="Conectar a Meta Ads"
             provider="meta"
-            lead="Traz gasto, impressões, cliques e criativos de cada anúncio. Só leitura: o nishiADS não altera nada nas suas campanhas."
+            lead="Traz gasto, impressões, cliques e criativos de cada anúncio. Só leitura: o Nishistack - ADS não altera nada nas suas campanhas."
           >
             <Steps>
               <li>
@@ -576,7 +576,7 @@ export function HelpPage() {
               </li>
               <li>Na tela da Meta, escolha os negócios e as contas e aceite as permissões.</li>
               <li>
-                De volta ao nishiADS, ligue a chave <strong>Acompanhar</strong> nas contas que
+                De volta ao Nishistack - ADS, ligue a chave <strong>Acompanhar</strong> nas contas que
                 importam. Cada conta ligada importa os últimos 30 dias na hora.
               </li>
             </Steps>
@@ -671,7 +671,7 @@ export function HelpPage() {
             </Steps>
             <Callout title="Por que a chave restrita">
               Nas assinaturas, a Stripe não manda no webhook o pagamento nem as UTMs da compra
-              original. O nishiADS usa a chave, só de leitura, para buscar esses dados. Ela não
+              original. O Nishistack - ADS usa a chave, só de leitura, para buscar esses dados. Ela não
               consegue cobrar, reembolsar nem alterar nada.
             </Callout>
             <Callout tone="warning" title="A Stripe não lê UTMs da URL">
@@ -756,7 +756,7 @@ export function HelpPage() {
               ))}
             </dl>
             <p>
-              <strong>Dados do comprador:</strong> vai o e-mail só com hash SHA-256 (o nishiADS
+              <strong>Dados do comprador:</strong> vai o e-mail só com hash SHA-256 (o Nishistack - ADS
               nunca guarda o e-mail em claro) e, quando o checkout repassa, os cookies <C>_fbc</C> e{" "}
               <C>_fbp</C> e o user agent. Com eles a Meta casa muito mais vendas com os cliques.
             </p>

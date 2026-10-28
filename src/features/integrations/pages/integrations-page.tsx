@@ -632,7 +632,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
                     <AlertDialogTitle>Excluir “{integration.name}”?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Os próximos webhooks desta URL serão recusados. As vendas já recebidas
-                      continuam no nishiADS.
+                      continuam no Nishistack - ADS.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

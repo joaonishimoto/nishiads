@@ -59,7 +59,7 @@ export const CAPI_GUIDE_STEPS = [
   "Abra o Gerenciador de Eventos da Meta (business.facebook.com/events_manager) e escolha, em Fontes de dados, o pixel (conjunto de dados) do seu site.",
   "Copie o ID do pixel, o número que aparece abaixo do nome dele (também em Configurações › ID do conjunto de dados).",
   "Ainda em Configurações, desça até API de Conversões e clique em Gerar token de acesso (fica em Configurar integração direta). Copie o token, que começa com EAA. A Meta mostra o token uma vez só.",
-  "Aqui no nishiADS, clique em Configurar e cole o ID do pixel, o token e a URL do seu site.",
+  "Aqui no Nishistack - ADS, clique em Configurar e cole o ID do pixel, o token e a URL do seu site.",
   "Para conferir: no Gerenciador de Eventos, abra a aba Testar eventos e copie o código de teste (ex.: TEST12345). Cole no campo Código de teste, salve e clique em Enviar evento de teste. Em alguns segundos o evento aparece lá.",
   "Depois de conferir, apague o código de teste e salve de novo. Com o código, as vendas vão para a tela de testes.",
 ];
