@@ -5,6 +5,7 @@
  */
 import { eachDay, ymdInZone } from "@/lib/period";
 import { addActions } from "@/features/results/meta-actions";
+import type { TrackingEvent } from "@/features/tracking/api";
 import type { AttributionStatus, SaleStatus } from "@/types/database";
 
 export type ResultSale = {
@@ -125,6 +126,8 @@ export type Totals = {
   metaTrials: number;
   allClicks: number;
   actions: Record<string, number>;
+  /** Eventos do script de rastreamento por nome (cadastro → quantidade). */
+  tracked: Record<string, number>;
   feesCents: number;
   costCents: number;
   profitCents: number;
@@ -150,6 +153,7 @@ export function computeTotals(
   insights: InsightRow[],
   products: Map<string, ProductCost>,
   currency: string,
+  events: TrackingEvent[] = [],
 ): Totals {
   let revenue = 0;
   let approved = 0;
@@ -215,6 +219,8 @@ export function computeTotals(
     allClicks += r.clicks;
     addActions(actions, r.actions);
   }
+  const tracked: Record<string, number> = {};
+  for (const e of events) tracked[e.event] = (tracked[e.event] ?? 0) + 1;
   return {
     revenueCents: revenue,
     approvedCount: approved,
@@ -225,6 +231,7 @@ export function computeTotals(
     metaTrials,
     allClicks,
     actions,
+    tracked,
     feesCents: fees,
     costCents: cost,
     profitCents: revenue - fees - cost - spend,
@@ -327,6 +334,8 @@ export type NodeMetrics = {
   trials: number;
   /** Ações da Meta somadas (action_type → quantidade). */
   actions: Record<string, number>;
+  /** Eventos do script de rastreamento ligados a este nível (cadastro → quantidade). */
+  tracked: Record<string, number>;
   sales: number;
   revenueCents: number;
   feesCents: number;
@@ -364,6 +373,7 @@ const emptyMetrics = (): NodeMetrics => ({
   registrations: 0,
   trials: 0,
   actions: {},
+  tracked: {},
   sales: 0,
   revenueCents: 0,
   feesCents: 0,
@@ -393,6 +403,7 @@ function isRelevant(node: TreeNode, keep?: ReadonlySet<string>): boolean {
     node.metrics.sales > 0 ||
     node.metrics.registrations > 0 ||
     node.metrics.trials > 0 ||
+    Object.keys(node.metrics.tracked).length > 0 ||
     node.status === "ACTIVE" ||
     !!keep?.has(node.id)
   );
@@ -412,6 +423,7 @@ export function buildTree(
   currency: string,
   accountId: string | null,
   keep?: ReadonlySet<string>,
+  events: TrackingEvent[] = [],
 ): TreeNode[] {
   const inAccount = <T extends { ad_account_id: string }>(e: T) =>
     !accountId || e.ad_account_id === accountId;
@@ -474,6 +486,15 @@ export function buildTree(
       t.metrics.feesCents += d.fees;
       t.metrics.costCents += d.cost;
     }
+  }
+  for (const e of events) {
+    const targets = [
+      e.campaign_id ? campaigns.get(e.campaign_id) : undefined,
+      e.adset_id ? adsets.get(e.adset_id) : undefined,
+      e.ad_id ? ads.get(e.ad_id) : undefined,
+    ];
+    for (const t of targets)
+      if (t) t.metrics.tracked[e.event] = (t.metrics.tracked[e.event] ?? 0) + 1;
   }
   for (const a of structure.ads) {
     const n = ads.get(a.id);

@@ -51,6 +51,7 @@ import { LoadError, PageHeader, Status } from "@/components/app/ui";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { MetaAdsPanel } from "@/features/meta/meta-ads-panel";
 import { CapiPanel } from "@/features/meta/capi-panel";
+import { TrackingPanel } from "@/features/tracking/tracking-panel";
 import { useAdAccounts, useMetaConnections } from "@/features/meta/api";
 import {
   useCreateIntegration,
@@ -120,6 +121,14 @@ export function IntegrationsPage() {
         <MetaAdsPanel />
         <UrlParametersCard />
         <CapiPanel />
+      </Section>
+
+      <Section
+        id="rastreamento"
+        title="Rastreamento"
+        description="Cadastros e outros eventos do seu site ou app, ligados ao criativo pelo UTM, sem depender da Meta."
+      >
+        <TrackingPanel />
       </Section>
 
       <Section

@@ -11,6 +11,7 @@ import {
   type ProductCost,
 } from "@/features/results/metrics";
 import type { ResultFiltersState } from "@/features/results/filters";
+import { useTrackingEvents } from "@/features/tracking/api";
 
 /**
  * Tudo que o Dashboard e Campanhas precisam para o recorte atual: vendas e insights do período
@@ -37,8 +38,15 @@ export function useResults(
   const prevSales = useResultSales(workspace.id, filters.previous.range);
   const insights = useInsights(workspace.id, filters.days, lastSync, metaConnected);
   const prevInsights = useInsights(workspace.id, filters.previous.days, lastSync, metaConnected);
+  const events = useTrackingEvents(workspace.id, filters.range);
+  const prevEvents = useTrackingEvents(workspace.id, filters.previous.range);
   const structure = useAdStructure(workspace.id, lastSync, metaConnected && tree);
 
+  // Conta de anúncio de cada campanha, para o filtro de conta valer nos eventos do rastreamento.
+  const campaignAccount = useMemo(
+    () => new Map((structure.data?.campaigns ?? []).map((c) => [c.id, c.ad_account_id])),
+    [structure.data],
+  );
   const productMap = useMemo(
     () => new Map<string, ProductCost>((products.data ?? []).map((p) => [p.id, p])),
     [products.data],
@@ -51,10 +59,16 @@ export function useResults(
     const ins = filterInsights(insights.data ?? [], scope);
     const ps = prevSales.data ? filterSales(prevSales.data, scope) : null;
     const pins = filterInsights(prevInsights.data ?? [], scope);
+    // O filtro de conta vale para os eventos pela campanha; o de produto não se aplica a eles.
+    const inScope = (e: { campaign_id: string | null }) =>
+      !filters.accountId ||
+      (!!e.campaign_id && campaignAccount.get(e.campaign_id) === filters.accountId);
+    const ev = (events.data ?? []).filter(inScope);
+    const pev = (prevEvents.data ?? []).filter(inScope);
     return {
       sales: s,
-      totals: computeTotals(s, ins, productMap, workspace.currency),
-      previous: ps ? computeTotals(ps, pins, productMap, workspace.currency) : null,
+      totals: computeTotals(s, ins, productMap, workspace.currency, ev),
+      previous: ps ? computeTotals(ps, pins, productMap, workspace.currency, pev) : null,
       series: dailySeries(s, ins, filters.days, workspace.timezone, workspace.currency),
       tree:
         tree && structure.data
@@ -66,6 +80,7 @@ export function useResults(
               workspace.currency,
               filters.accountId,
               keep,
+              ev,
             )
           : null,
     };
@@ -76,6 +91,9 @@ export function useResults(
     insights.data,
     prevInsights.data,
     structure.data,
+    events.data,
+    prevEvents.data,
+    campaignAccount,
     productMap,
     filters.accountId,
     filters.productId,

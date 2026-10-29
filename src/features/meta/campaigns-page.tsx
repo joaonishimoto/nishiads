@@ -133,6 +133,7 @@ function CampaignsContent() {
         trials: t.metaTrials,
         allClicks: t.allClicks,
         actions: t.actions,
+        tracked: t.tracked,
         sales: t.approvedCount,
         revenueCents: t.revenueCents,
         feesCents: t.feesCents,

@@ -106,8 +106,8 @@ const COLUMN_HINTS: Record<BaseColumnKey, string> = {
   conversion: "vendas por clique",
 };
 
-/** Colunas fixas e as das ações da Meta (meta_*), estas montadas do catálogo. */
-type ColumnKey = BaseColumnKey | `meta_${string}`;
+/** Colunas fixas, as das ações da Meta (meta_*) e as do rastreamento próprio (track_*). */
+type ColumnKey = BaseColumnKey | `meta_${string}` | `track_${string}`;
 
 type Column = {
   key: ColumnKey;
@@ -246,8 +246,61 @@ function metaActionColumns(metric: MetaActionMetric): Column[] {
   return columns;
 }
 
+/** Eventos do script nishistack-ads.js que viram colunas (o nome é o da chamada no app). */
+const TRACKED_EVENTS: { event: string; label: string; hint: string; costLabel?: string }[] = [
+  {
+    event: "cadastro",
+    label: "Cadastros (rastreio)",
+    hint: "nishistack('cadastro') no seu app, ligado ao anúncio pelo UTM",
+    costLabel: "Custo por cadastro (rastreio)",
+  },
+  {
+    event: "teste",
+    label: "Testes (rastreio)",
+    hint: "nishistack('teste') no seu app, ligado ao anúncio pelo UTM",
+  },
+  {
+    event: "compra",
+    label: "Compras (rastreio)",
+    hint: "nishistack('compra') no seu app, ligado ao anúncio pelo UTM",
+  },
+  {
+    event: "lead",
+    label: "Leads (rastreio)",
+    hint: "nishistack('lead') no seu app, ligado ao anúncio pelo UTM",
+  },
+];
+
+function trackedColumns(t: (typeof TRACKED_EVENTS)[number]): Column[] {
+  const count = (m: NodeMetrics) => m.tracked[t.event] ?? 0;
+  const columns: Column[] = [
+    {
+      key: `track_${t.event}`,
+      label: t.label,
+      hint: t.hint,
+      value: count,
+      render: (m) => fmt.int(count(m)),
+    },
+  ];
+  if (t.costLabel) {
+    const costPer = (m: NodeMetrics) => {
+      const n = count(m);
+      return n > 0 && m.spendCents > 0 ? Math.round(m.spendCents / n) : null;
+    };
+    columns.push({
+      key: `track_cost_${t.event}`,
+      label: t.costLabel,
+      hint: `gasto ÷ ${t.label.toLowerCase()}`,
+      value: costPer,
+      render: (m, c) => fmt.money(costPer(m), c.currency),
+    });
+  }
+  return columns;
+}
+
 const COLUMNS: Column[] = [
   ...BASE_COLUMNS.map((c) => ({ ...c, hint: COLUMN_HINTS[c.key] })),
+  ...TRACKED_EVENTS.flatMap(trackedColumns),
   ...META_ACTION_METRICS.flatMap(metaActionColumns),
 ];
 
