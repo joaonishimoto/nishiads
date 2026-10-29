@@ -70,18 +70,33 @@ function ticket(m: NodeMetrics) {
 }
 /** Custo por cadastro. */
 function cpl(m: NodeMetrics) {
-  return m.registrations > 0 && m.spendCents > 0 ? Math.round(m.spendCents / m.registrations) : null;
+  return m.registrations > 0 && m.spendCents > 0
+    ? Math.round(m.spendCents / m.registrations)
+    : null;
 }
 /** Vendas por clique no link. */
 function conversion(m: NodeMetrics) {
   return m.linkClicks > 0 ? m.sales / m.linkClicks : null;
 }
 
-const COLUMN_HINTS: Partial<Record<ColumnKey, string>> = {
+/** O que cada coluna mede, ao lado do nome no editor de template. */
+const COLUMN_HINTS: Record<ColumnKey, string> = {
+  spend: "quanto a Meta cobrou",
+  registrations: "contas criadas, atribuídas pela Meta",
+  cpl: "gasto ÷ cadastros",
+  trials: "testes grátis iniciados, atribuídos pela Meta",
+  sales: "vendas aprovadas atribuídas",
+  revenue: "valor bruto das vendas",
+  roas: "retorno sobre o gasto: faturamento ÷ gasto",
+  cpa: "custo por aquisição: gasto ÷ vendas",
+  profit: "faturamento − taxas − custos − gasto",
+  impressions: "vezes que o anúncio apareceu",
+  clicks: "cliques no link",
+  ctr: "taxa de cliques: cliques ÷ impressões",
+  cpc: "custo por clique",
   cpm: "custo por mil impressões",
+  ticket: "faturamento ÷ vendas",
   conversion: "vendas por clique",
-  registrations: "CompleteRegistration, atribuído pela Meta",
-  trials: "StartTrial, atribuído pela Meta",
 };
 
 type Column = {
