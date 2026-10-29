@@ -42,6 +42,9 @@ export type InsightRow = {
   impressions: number;
   clicks: number;
   link_clicks: number;
+  /** Cadastros e testes que a Meta atribuiu ao anúncio (pixel/Conversions API). */
+  registrations: number;
+  trials: number;
 };
 
 export type CampaignEntity = {
@@ -114,6 +117,9 @@ export type Totals = {
   spendCents: number;
   impressions: number;
   linkClicks: number;
+  /** Cadastros e testes que a Meta atribuiu aos anúncios. */
+  registrations: number;
+  metaTrials: number;
   feesCents: number;
   costCents: number;
   profitCents: number;
@@ -186,6 +192,8 @@ export function computeTotals(
   let spend = 0;
   let impressions = 0;
   let linkClicks = 0;
+  let registrations = 0;
+  let metaTrials = 0;
   let otherCurrencySpend = false;
   for (const r of insights) {
     if (r.currency !== currency) {
@@ -195,6 +203,8 @@ export function computeTotals(
     spend += r.spend_cents;
     impressions += r.impressions;
     linkClicks += r.link_clicks;
+    registrations += r.registrations;
+    metaTrials += r.trials;
   }
   return {
     revenueCents: revenue,
@@ -202,6 +212,8 @@ export function computeTotals(
     spendCents: spend,
     impressions,
     linkClicks,
+    registrations,
+    metaTrials,
     feesCents: fees,
     costCents: cost,
     profitCents: revenue - fees - cost - spend,
@@ -298,6 +310,8 @@ export type NodeMetrics = {
   spendCents: number;
   impressions: number;
   linkClicks: number;
+  registrations: number;
+  trials: number;
   sales: number;
   revenueCents: number;
   feesCents: number;
@@ -331,6 +345,8 @@ const emptyMetrics = (): NodeMetrics => ({
   spendCents: 0,
   impressions: 0,
   linkClicks: 0,
+  registrations: 0,
+  trials: 0,
   sales: 0,
   revenueCents: 0,
   feesCents: 0,
@@ -358,6 +374,8 @@ function isRelevant(node: TreeNode, keep?: ReadonlySet<string>): boolean {
   return (
     node.metrics.spendCents > 0 ||
     node.metrics.sales > 0 ||
+    node.metrics.registrations > 0 ||
+    node.metrics.trials > 0 ||
     node.status === "ACTIVE" ||
     !!keep?.has(node.id)
   );
@@ -418,6 +436,8 @@ export function buildTree(
       t.metrics.spendCents += r.spend_cents;
       t.metrics.impressions += r.impressions;
       t.metrics.linkClicks += r.link_clicks;
+      t.metrics.registrations += r.registrations;
+      t.metrics.trials += r.trials;
     }
   }
   for (const s of sales) {

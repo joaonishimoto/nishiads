@@ -80,7 +80,10 @@ export type MetaInsightRow = {
   ctr?: string;
   cpc?: string;
   cpm?: string;
+  actions?: MetaAction[];
 };
+
+export type MetaAction = { action_type: string; value: string };
 
 export const INSIGHT_FIELDS = [
   "date_start",
@@ -99,7 +102,33 @@ export const INSIGHT_FIELDS = [
   "ctr",
   "cpc",
   "cpm",
+  "actions",
 ].join(",");
+
+// A Meta repete o mesmo evento em vários action_type (omni_, total, só site, só pixel).
+// Vale o primeiro que vier, nesta ordem, para não contar o mesmo cadastro duas vezes.
+const REGISTRATION_ACTIONS = [
+  "omni_complete_registration",
+  "complete_registration",
+  "offsite_conversion.fb_pixel_complete_registration",
+];
+const TRIAL_ACTIONS = [
+  "omni_start_trial",
+  "start_trial_total",
+  "start_trial_website",
+  "offsite_conversion.fb_pixel_start_trial",
+  "start_trial",
+];
+
+/** Contagem de um evento no campo actions dos insights. */
+export function actionCount(actions: MetaAction[] | undefined, types: string[]): number {
+  if (!actions?.length) return 0;
+  for (const type of types) {
+    const found = actions.find((a) => a.action_type === type);
+    if (found) return toCount(found.value);
+  }
+  return 0;
+}
 
 export type InsightValues = {
   date: string;
@@ -112,6 +141,8 @@ export type InsightValues = {
   ctr: number | null;
   cpc_cents: number | null;
   cpm_cents: number | null;
+  registrations: number;
+  trials: number;
 };
 
 export function mapInsight(row: MetaInsightRow, fallbackCurrency: string): InsightValues {
@@ -127,6 +158,8 @@ export function mapInsight(row: MetaInsightRow, fallbackCurrency: string): Insig
     ctr: ctr !== null && Number.isFinite(ctr) ? Math.round(ctr * 1e6) / 1e6 : null,
     cpc_cents: toNullableCents(row.cpc),
     cpm_cents: toNullableCents(row.cpm),
+    registrations: actionCount(row.actions, REGISTRATION_ACTIONS),
+    trials: actionCount(row.actions, TRIAL_ACTIONS),
   };
 }
 
