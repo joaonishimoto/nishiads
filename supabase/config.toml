@@ -51,3 +51,7 @@ verify_jwt = false
 # Assistente de IA: valida o token do usuário e o vínculo com o workspace dentro da função.
 [functions.assistant]
 verify_jwt = false
+
+# Eventos do script nos sites rastreados: público, a chave da fonte vai no corpo.
+[functions.track]
+verify_jwt = false

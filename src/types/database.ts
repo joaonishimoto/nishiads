@@ -175,6 +175,39 @@ type CheckoutIntegrationRow = Timestamps & {
   created_by: string | null;
 };
 
+type TrackingSourceRow = Timestamps & {
+  id: string;
+  workspace_id: string;
+  name: string;
+  public_key: string;
+  active: boolean;
+  last_event_at: string | null;
+  created_by: string | null;
+};
+
+type TrackingEventRow = {
+  id: number;
+  workspace_id: string;
+  source_id: string;
+  event: string;
+  dedupe_key: string;
+  visitor_id: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  fbclid: string | null;
+  landing_url: string | null;
+  touched_at: string | null;
+  campaign_id: string | null;
+  adset_id: string | null;
+  ad_id: string | null;
+  attribution_status: AttributionStatus;
+  occurred_at: string;
+  created_at: string;
+};
+
 type ProductRow = Timestamps & {
   id: string;
   workspace_id: string;
@@ -436,6 +469,20 @@ export type Database = {
       >;
       ad_insights_daily: Table<AdInsightDailyRow, "ad_id" | "date" | "workspace_id" | "ad_account_id">;
       checkout_integrations: Table<CheckoutIntegrationRow, "workspace_id" | "provider" | "name">;
+      tracking_sources: Table<TrackingSourceRow, "workspace_id" | "name">;
+      tracking_events: Table<
+        TrackingEventRow,
+        "workspace_id" | "source_id" | "event" | "dedupe_key",
+        [
+          {
+            foreignKeyName: "tracking_events_source_id_workspace_id_fkey";
+            columns: ["source_id", "workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "tracking_sources";
+            referencedColumns: ["id", "workspace_id"];
+          },
+        ]
+      >;
       products: Table<ProductRow, "workspace_id" | "name">;
       sales: Table<
         SaleRow,
@@ -551,6 +598,10 @@ export type Database = {
           p_webhook_secret?: string | null;
         };
         Returns: CheckoutIntegrationRow;
+      };
+      create_tracking_source: {
+        Args: { p_workspace_id: string; p_name: string };
+        Returns: TrackingSourceRow;
       };
       disconnect_meta_connection: {
         Args: { p_connection_id: string };

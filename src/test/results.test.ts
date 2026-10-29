@@ -161,6 +161,54 @@ describe("métricas de resultado", () => {
     expect(buildTree(structure, sales, [], new Map(), "BRL", "outra")).toHaveLength(0);
   });
 
+  it("conta os eventos do rastreamento no nível atribuído e no total", () => {
+    const at = "2026-10-20T12:00:00Z";
+    const events = [
+      {
+        event: "cadastro",
+        campaign_id: "c1",
+        adset_id: "s1",
+        ad_id: "a1",
+        attribution_status: "matched" as const,
+        occurred_at: at,
+      },
+      {
+        event: "cadastro",
+        campaign_id: "c2",
+        adset_id: null,
+        ad_id: null,
+        attribution_status: "partial" as const,
+        occurred_at: at,
+      },
+      {
+        event: "cadastro",
+        campaign_id: null,
+        adset_id: null,
+        ad_id: null,
+        attribution_status: "unattributed" as const,
+        occurred_at: at,
+      },
+      {
+        event: "teste",
+        campaign_id: "c1",
+        adset_id: "s1",
+        ad_id: "a1",
+        attribution_status: "matched" as const,
+        occurred_at: at,
+      },
+    ];
+    const tree = buildTree(structure, [], [], new Map(), "BRL", null, undefined, events);
+    const c1 = tree.find((n) => n.id === "c1")!;
+    expect(c1.metrics.tracked).toEqual({ cadastro: 1, teste: 1 });
+    expect(c1.children[0]!.children[0]!.metrics.tracked.cadastro).toBe(1);
+    // Campanha pausada e sem gasto continua na tabela porque teve cadastro.
+    expect(tree.find((n) => n.id === "c2")!.metrics.tracked.cadastro).toBe(1);
+    expect(computeTotals([], [], new Map(), "BRL", events).tracked).toEqual({
+      cadastro: 3,
+      teste: 1,
+    });
+  });
+
   it("filtra por conta pela campanha da venda e por produto", () => {
     const sales = [
       sale({ campaign: { id: "c1", name: "C", ad_account_id: "acc1" }, product_id: "p1" }),
