@@ -69,7 +69,7 @@ export function useInsights(
         supabase
           .from("ad_insights_daily")
           .select(
-            "ad_id, date, ad_account_id, currency, spend_cents, impressions, clicks, link_clicks, registrations, trials",
+            "ad_id, date, ad_account_id, currency, spend_cents, impressions, clicks, link_clicks, registrations, trials, actions",
           )
           .eq("workspace_id", workspaceId)
           .gte("date", days.first)

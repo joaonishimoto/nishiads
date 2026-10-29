@@ -79,6 +79,12 @@ describe("mapping", () => {
       cpm_cents: 1505,
       registrations: 5,
       trials: 2,
+      actions: {
+        link_click: 200,
+        "offsite_conversion.fb_pixel_complete_registration": 4,
+        omni_complete_registration: 5,
+        "offsite_conversion.fb_pixel_start_trial": 2,
+      },
     });
   });
 

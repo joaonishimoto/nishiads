@@ -120,6 +120,16 @@ const TRIAL_ACTIONS = [
   "start_trial",
 ];
 
+/** Todas as ações do dia, action_type → quantidade (só as maiores que zero). */
+export function actionMap(actions: MetaAction[] | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const a of actions ?? []) {
+    const count = toCount(a.value);
+    if (a.action_type && count > 0) out[a.action_type] = count;
+  }
+  return out;
+}
+
 /** Contagem de um evento no campo actions dos insights. */
 export function actionCount(actions: MetaAction[] | undefined, types: string[]): number {
   if (!actions?.length) return 0;
@@ -143,6 +153,7 @@ export type InsightValues = {
   cpm_cents: number | null;
   registrations: number;
   trials: number;
+  actions: Record<string, number>;
 };
 
 export function mapInsight(row: MetaInsightRow, fallbackCurrency: string): InsightValues {
@@ -160,6 +171,7 @@ export function mapInsight(row: MetaInsightRow, fallbackCurrency: string): Insig
     cpm_cents: toNullableCents(row.cpm),
     registrations: actionCount(row.actions, REGISTRATION_ACTIONS),
     trials: actionCount(row.actions, TRIAL_ACTIONS),
+    actions: actionMap(row.actions),
   };
 }
 

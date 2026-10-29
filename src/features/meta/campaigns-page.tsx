@@ -131,6 +131,8 @@ function CampaignsContent() {
         linkClicks: t.linkClicks,
         registrations: t.registrations,
         trials: t.metaTrials,
+        allClicks: t.allClicks,
+        actions: t.actions,
         sales: t.approvedCount,
         revenueCents: t.revenueCents,
         feesCents: t.feesCents,
