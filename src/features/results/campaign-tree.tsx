@@ -24,6 +24,11 @@ import { derived, type Level, type NodeMetrics, type TreeNode } from "@/features
 import { fmt, RoasBadge, Thumb } from "@/features/results/components";
 import { BudgetValue, DeliveryToggle, useMetaControls } from "@/features/meta/controls";
 import type { ViewCatalog } from "@/features/views/catalog";
+import {
+  actionValue,
+  META_ACTION_METRICS,
+  type MetaActionMetric,
+} from "@/features/results/meta-actions";
 
 export const DELIVERY_LABELS: Record<string, string> = {
   ACTIVE: "Ativo",
@@ -44,7 +49,8 @@ const LEVEL_LABELS: Record<Level, string> = {
   ad: "Anúncio",
 };
 
-type ColumnKey =
+type BaseColumnKey =
+  | "all_clicks"
   | "spend"
   | "impressions"
   | "clicks"
@@ -80,7 +86,8 @@ function conversion(m: NodeMetrics) {
 }
 
 /** O que cada coluna mede, ao lado do nome no editor de template. */
-const COLUMN_HINTS: Record<ColumnKey, string> = {
+const COLUMN_HINTS: Record<BaseColumnKey, string> = {
+  all_clicks: "todos os cliques: link, perfil, curtir, ver mais",
   spend: "quanto a Meta cobrou",
   registrations: "contas criadas, atribuídas pela Meta",
   cpl: "gasto ÷ cadastros",
@@ -99,14 +106,18 @@ const COLUMN_HINTS: Record<ColumnKey, string> = {
   conversion: "vendas por clique",
 };
 
+/** Colunas fixas e as das ações da Meta (meta_*), estas montadas do catálogo. */
+type ColumnKey = BaseColumnKey | `meta_${string}`;
+
 type Column = {
   key: ColumnKey;
   label: string;
+  hint?: string;
   value: (m: NodeMetrics) => number | null;
   render: (m: NodeMetrics, ctx: { currency: string; target: number }) => ReactNode;
 };
 
-const COLUMNS: Column[] = [
+const BASE_COLUMNS: (Column & { key: BaseColumnKey })[] = [
   {
     key: "spend",
     label: "Gasto",
@@ -200,6 +211,44 @@ const COLUMNS: Column[] = [
     value: conversion,
     render: (m) => fmt.pct(conversion(m), 2),
   },
+  {
+    key: "all_clicks",
+    label: "Cliques (todos)",
+    value: (m) => m.allClicks,
+    render: (m) => fmt.int(m.allClicks),
+  },
+];
+
+function metaActionColumns(metric: MetaActionMetric): Column[] {
+  const count = (m: NodeMetrics) => actionValue(m.actions, metric.types);
+  const costPer = (m: NodeMetrics) => {
+    const n = count(m);
+    return n > 0 && m.spendCents > 0 ? Math.round(m.spendCents / n) : null;
+  };
+  const columns: Column[] = [
+    {
+      key: `meta_${metric.key}`,
+      label: metric.label,
+      hint: metric.hint,
+      value: count,
+      render: (m) => fmt.int(count(m)),
+    },
+  ];
+  if (metric.cost) {
+    columns.push({
+      key: `meta_cost_${metric.key}`,
+      label: metric.cost.label,
+      hint: metric.cost.hint,
+      value: costPer,
+      render: (m, c) => fmt.money(costPer(m), c.currency),
+    });
+  }
+  return columns;
+}
+
+const COLUMNS: Column[] = [
+  ...BASE_COLUMNS.map((c) => ({ ...c, hint: COLUMN_HINTS[c.key] })),
+  ...META_ACTION_METRICS.flatMap(metaActionColumns),
 ];
 
 /** Colunas que dá para ligar e desligar no template de Campanhas, além do orçamento. */
@@ -227,7 +276,7 @@ export const CAMPAIGNS_VIEW: ViewCatalog = {
       key: c.key,
       label: c.label,
       group: "columns",
-      hint: COLUMN_HINTS[c.key],
+      hint: c.hint,
     })),
   ],
   defaults: ["budget", ...DEFAULT_COLUMNS],

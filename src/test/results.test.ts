@@ -81,6 +81,7 @@ const insight = (over: Partial<InsightRow>): InsightRow => ({
   link_clicks: 20,
   registrations: 0,
   trials: 0,
+  actions: null,
   ...over,
 });
 
@@ -212,5 +213,18 @@ describe("métricas de resultado", () => {
     expect(days).toEqual({ first: "2026-10-19", last: "2026-10-25" });
     expect(previousDays(days)).toEqual({ first: "2026-10-12", last: "2026-10-18" });
     expect(daySpan("2026-10-01", "2026-10-31")).toBe(31);
+  });
+});
+
+describe("ações da Meta", () => {
+  it("soma as ações e lê cada métrica pelo primeiro action_type que existir", async () => {
+    const { actionValue, addActions } = await import("@/features/results/meta-actions");
+    const total: Record<string, number> = {};
+    addActions(total, { landing_page_view: 3, omni_landing_page_view: 3, lead: 1 });
+    addActions(total, { landing_page_view: 2, omni_landing_page_view: 2 });
+    addActions(total, null);
+    expect(actionValue(total, ["omni_landing_page_view", "landing_page_view"])).toBe(5);
+    expect(actionValue(total, ["lead", "offsite_conversion.fb_pixel_lead"])).toBe(1);
+    expect(actionValue(total, ["video_view"])).toBe(0);
   });
 });

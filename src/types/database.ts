@@ -159,6 +159,7 @@ type AdInsightDailyRow = {
   cpm_cents: number | null;
   registrations: number;
   trials: number;
+  actions: Record<string, number>;
   synced_at: string;
 };
 

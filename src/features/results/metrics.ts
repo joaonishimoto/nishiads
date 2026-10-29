@@ -4,6 +4,7 @@
  * devolvem totais, série diária e a árvore Campanha › Conjunto › Anúncio.
  */
 import { eachDay, ymdInZone } from "@/lib/period";
+import { addActions } from "@/features/results/meta-actions";
 import type { AttributionStatus, SaleStatus } from "@/types/database";
 
 export type ResultSale = {
@@ -45,6 +46,8 @@ export type InsightRow = {
   /** Cadastros e testes que a Meta atribuiu ao anúncio (pixel/Conversions API). */
   registrations: number;
   trials: number;
+  /** Todas as ações da Meta no dia (action_type → quantidade). */
+  actions: Record<string, number> | null;
 };
 
 export type CampaignEntity = {
@@ -120,6 +123,8 @@ export type Totals = {
   /** Cadastros e testes que a Meta atribuiu aos anúncios. */
   registrations: number;
   metaTrials: number;
+  allClicks: number;
+  actions: Record<string, number>;
   feesCents: number;
   costCents: number;
   profitCents: number;
@@ -194,6 +199,8 @@ export function computeTotals(
   let linkClicks = 0;
   let registrations = 0;
   let metaTrials = 0;
+  let allClicks = 0;
+  const actions: Record<string, number> = {};
   let otherCurrencySpend = false;
   for (const r of insights) {
     if (r.currency !== currency) {
@@ -205,6 +212,8 @@ export function computeTotals(
     linkClicks += r.link_clicks;
     registrations += r.registrations;
     metaTrials += r.trials;
+    allClicks += r.clicks;
+    addActions(actions, r.actions);
   }
   return {
     revenueCents: revenue,
@@ -214,6 +223,8 @@ export function computeTotals(
     linkClicks,
     registrations,
     metaTrials,
+    allClicks,
+    actions,
     feesCents: fees,
     costCents: cost,
     profitCents: revenue - fees - cost - spend,
@@ -310,8 +321,12 @@ export type NodeMetrics = {
   spendCents: number;
   impressions: number;
   linkClicks: number;
+  /** Todos os cliques (link, perfil, curtir...), como a Meta conta. */
+  allClicks: number;
   registrations: number;
   trials: number;
+  /** Ações da Meta somadas (action_type → quantidade). */
+  actions: Record<string, number>;
   sales: number;
   revenueCents: number;
   feesCents: number;
@@ -345,8 +360,10 @@ const emptyMetrics = (): NodeMetrics => ({
   spendCents: 0,
   impressions: 0,
   linkClicks: 0,
+  allClicks: 0,
   registrations: 0,
   trials: 0,
+  actions: {},
   sales: 0,
   revenueCents: 0,
   feesCents: 0,
@@ -438,6 +455,8 @@ export function buildTree(
       t.metrics.linkClicks += r.link_clicks;
       t.metrics.registrations += r.registrations;
       t.metrics.trials += r.trials;
+      t.metrics.allClicks += r.clicks;
+      addActions(t.metrics.actions, r.actions);
     }
   }
   for (const s of sales) {
