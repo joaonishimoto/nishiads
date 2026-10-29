@@ -149,6 +149,8 @@ export type PreferencesPatch = Partial<
     | "quiet_hours_end"
     | "sound_enabled"
     | "notify_alerts"
+    | "notify_registrations"
+    | "notify_trials"
   >
 >;
 
