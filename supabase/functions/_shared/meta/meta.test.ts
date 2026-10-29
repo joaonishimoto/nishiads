@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { classifyMetaError, GraphClient, GRAPH_API_VERSION, MetaApiError, parseUsage } from "./graph.ts";
-import { accountStatusFromMeta, dateChunks, insightsWindow, mapInsight, normalizeAccountId, toCents, todayIn } from "./mapping.ts";
+import { accountStatusFromMeta, actionCount, dateChunks, insightsWindow, mapInsight, normalizeAccountId, toCents, todayIn } from "./mapping.ts";
 
 describe("mapping", () => {
   it("converte valores da Meta para centavos", () => {
@@ -57,6 +57,12 @@ describe("mapping", () => {
           ctr: "3.123456789",
           cpc: "0.501667",
           cpm: "15.05",
+          actions: [
+            { action_type: "link_click", value: "200" },
+            { action_type: "offsite_conversion.fb_pixel_complete_registration", value: "4" },
+            { action_type: "omni_complete_registration", value: "5" },
+            { action_type: "offsite_conversion.fb_pixel_start_trial", value: "2" },
+          ],
         },
         "USD",
       ),
@@ -71,7 +77,22 @@ describe("mapping", () => {
       ctr: 3.123457,
       cpc_cents: 50,
       cpm_cents: 1505,
+      registrations: 5,
+      trials: 2,
     });
+  });
+
+  it("conta cada evento uma vez e zera quando a Meta não manda actions", () => {
+    expect(actionCount(undefined, ["complete_registration"])).toBe(0);
+    expect(
+      actionCount(
+        [
+          { action_type: "complete_registration", value: "3" },
+          { action_type: "offsite_conversion.fb_pixel_complete_registration", value: "3" },
+        ],
+        ["omni_complete_registration", "complete_registration", "offsite_conversion.fb_pixel_complete_registration"],
+      ),
+    ).toBe(3);
   });
 
   it("normaliza id e status da conta", () => {

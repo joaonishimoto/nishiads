@@ -129,6 +129,8 @@ function CampaignsContent() {
         spendCents: t.spendCents,
         impressions: t.impressions,
         linkClicks: t.linkClicks,
+        registrations: t.registrations,
+        trials: t.metaTrials,
         sales: t.approvedCount,
         revenueCents: t.revenueCents,
         feesCents: t.feesCents,

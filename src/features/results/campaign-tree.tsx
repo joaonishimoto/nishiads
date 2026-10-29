@@ -57,13 +57,20 @@ type ColumnKey =
   | "profit"
   | "cpm"
   | "ticket"
-  | "conversion";
+  | "conversion"
+  | "registrations"
+  | "cpl"
+  | "trials";
 
 function cpm(m: NodeMetrics) {
   return m.impressions > 0 ? Math.round((m.spendCents / m.impressions) * 1000) : null;
 }
 function ticket(m: NodeMetrics) {
   return m.sales > 0 ? Math.round(m.revenueCents / m.sales) : null;
+}
+/** Custo por cadastro. */
+function cpl(m: NodeMetrics) {
+  return m.registrations > 0 && m.spendCents > 0 ? Math.round(m.spendCents / m.registrations) : null;
 }
 /** Vendas por clique no link. */
 function conversion(m: NodeMetrics) {
@@ -73,6 +80,8 @@ function conversion(m: NodeMetrics) {
 const COLUMN_HINTS: Partial<Record<ColumnKey, string>> = {
   cpm: "custo por mil impressões",
   conversion: "vendas por clique",
+  registrations: "CompleteRegistration, atribuído pela Meta",
+  trials: "StartTrial, atribuído pela Meta",
 };
 
 type Column = {
@@ -89,6 +98,19 @@ const COLUMNS: Column[] = [
     value: (m) => m.spendCents,
     render: (m, c) => fmt.money(m.spendCents, c.currency),
   },
+  {
+    key: "registrations",
+    label: "Cadastros",
+    value: (m) => m.registrations,
+    render: (m) => fmt.int(m.registrations),
+  },
+  {
+    key: "cpl",
+    label: "Custo por cadastro",
+    value: cpl,
+    render: (m, c) => fmt.money(cpl(m), c.currency),
+  },
+  { key: "trials", label: "Testes", value: (m) => m.trials, render: (m) => fmt.int(m.trials) },
   { key: "sales", label: "Vendas", value: (m) => m.sales, render: (m) => fmt.int(m.sales) },
   {
     key: "revenue",
@@ -168,6 +190,9 @@ const COLUMNS: Column[] = [
 /** Colunas que dá para ligar e desligar no template de Campanhas, além do orçamento. */
 const DEFAULT_COLUMNS: ColumnKey[] = [
   "spend",
+  "registrations",
+  "cpl",
+  "trials",
   "sales",
   "revenue",
   "roas",

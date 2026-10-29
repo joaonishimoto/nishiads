@@ -206,13 +206,14 @@ export function TopCreatives({
   );
 }
 
-type CreativeSort = "profit" | "roas" | "revenue" | "spend" | "sales";
+type CreativeSort = "profit" | "roas" | "revenue" | "spend" | "sales" | "registrations";
 const SORTS: { key: CreativeSort; label: string; value: (m: NodeMetrics) => number | null }[] = [
   { key: "profit", label: "Maior lucro", value: derived.profit },
   { key: "roas", label: "Maior ROAS", value: derived.roas },
   { key: "revenue", label: "Maior faturamento", value: (m) => m.revenueCents },
   { key: "spend", label: "Maior gasto", value: (m) => m.spendCents },
   { key: "sales", label: "Mais vendas", value: (m) => m.sales },
+  { key: "registrations", label: "Mais cadastros", value: (m) => m.registrations },
 ];
 
 type CreativeFilter = "all" | "profit" | "loss" | "nosale";

@@ -7,6 +7,8 @@ const metrics = (over: Partial<NodeMetrics> = {}): NodeMetrics => ({
   spendCents: 0,
   impressions: 0,
   linkClicks: 0,
+  registrations: 0,
+  trials: 0,
   sales: 0,
   revenueCents: 0,
   feesCents: 0,

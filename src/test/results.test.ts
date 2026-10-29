@@ -79,6 +79,8 @@ const insight = (over: Partial<InsightRow>): InsightRow => ({
   impressions: 1000,
   clicks: 30,
   link_clicks: 20,
+  registrations: 0,
+  trials: 0,
   ...over,
 });
 
@@ -141,7 +143,7 @@ describe("métricas de resultado", () => {
     const tree = buildTree(
       structure,
       sales,
-      [insight({}), insight({ date: "2026-10-21" })],
+      [insight({ registrations: 3, trials: 1 }), insight({ date: "2026-10-21", registrations: 2 })],
       new Map(),
       "BRL",
       null,
@@ -152,6 +154,9 @@ describe("métricas de resultado", () => {
     expect(c1.metrics.sales).toBe(2);
     expect(c1.children[0]!.metrics.sales).toBe(1);
     expect(c1.children[0]!.children[0]!.metrics.spendCents).toBe(10_000);
+    // Cadastros e testes da Meta sobem do anúncio como o gasto.
+    expect(c1.metrics.registrations).toBe(5);
+    expect(c1.children[0]!.children[0]!.metrics.trials).toBe(1);
     expect(buildTree(structure, sales, [], new Map(), "BRL", "outra")).toHaveLength(0);
   });
 
