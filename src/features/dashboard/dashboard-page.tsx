@@ -108,6 +108,25 @@ const SECTION_LABELS = {
   sales: "Lista de vendas",
 } as const;
 
+/** O que cada métrica mede, ao lado do nome no editor de template. */
+const CARD_HINTS: Partial<Record<CardKey, string>> = {
+  revenue: "valor bruto das vendas aprovadas",
+  spend: "quanto a Meta cobrou",
+  profit: "faturamento − taxas − custos − gasto",
+  roas: "retorno sobre o gasto: faturamento ÷ gasto",
+  cpa: "custo por aquisição: gasto ÷ vendas",
+  ticket: "faturamento ÷ vendas",
+  matched: "vendas ligadas a um anúncio",
+  ctr: "taxa de cliques: cliques ÷ impressões",
+  cpc: "custo por clique",
+  cpm: "custo por mil impressões",
+  fees: "taxas do checkout e custo dos produtos",
+};
+const STRIP_HINTS: Partial<Record<StripKey, string>> = {
+  trials: "assinaturas no período grátis",
+  refund_rate: "reembolsos ÷ vendas",
+};
+
 const EXTRA_CARDS: CardKey[] = ["impressions", "clicks", "ctr", "cpc", "cpm", "fees"];
 
 /** O que dá para ligar e desligar no Dashboard; sem template, fica como sempre foi. */
@@ -118,8 +137,18 @@ const DASHBOARD_VIEW: ViewCatalog = {
     { key: "sections", label: "Seções", reorder: false },
   ],
   options: [
-    ...Object.entries(CARD_LABELS).map(([key, label]) => ({ key, label, group: "cards" })),
-    ...Object.entries(STRIP_LABELS).map(([key, label]) => ({ key, label, group: "strip" })),
+    ...Object.entries(CARD_LABELS).map(([key, label]) => ({
+      key,
+      label,
+      group: "cards",
+      hint: CARD_HINTS[key as CardKey],
+    })),
+    ...Object.entries(STRIP_LABELS).map(([key, label]) => ({
+      key,
+      label,
+      group: "strip",
+      hint: STRIP_HINTS[key as StripKey],
+    })),
     ...Object.entries(SECTION_LABELS).map(([key, label]) => ({ key, label, group: "sections" })),
   ],
   defaults: [

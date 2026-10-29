@@ -261,7 +261,7 @@ function TemplateDialog({
                             {opt.label}
                           </span>
                           {opt.hint && (
-                            <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                            <span className="truncate text-xs text-muted-foreground">
                               {opt.hint}
                             </span>
                           )}
