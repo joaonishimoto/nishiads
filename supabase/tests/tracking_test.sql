@@ -67,10 +67,25 @@ begin
     'event', 'cadastro', 'dedupe_key', 'user-1', 'visitor_id', 'v1',
     'utm_source', 'FB', 'utm_campaign', 'Cadastros|1202000001', 'utm_medium', 'Aberto|1203000001',
     'utm_content', 'c4-c quanto de cachaca|1204000001', 'touched_at', '2026-10-29T12:00:00Z'));
-  if r->>'attribution_status' <> 'matched' then raise exception 'FALHOU: evento com ids: %', r; end if;
+  if r->>'attribution_status' <> 'matched' or (r->>'event_id') is null then
+    raise exception 'FALHOU: evento com ids: %', r;
+  end if;
   if (select ad_id::text || adset_id::text || campaign_id::text from public.tracking_events where dedupe_key = 'user-1')
      <> 'a4000000-0000-0000-0000-000000000001a3000000-0000-0000-0000-000000000001a2000000-0000-0000-0000-000000000001' then
     raise exception 'FALHOU: hierarquia do evento';
+  end if;
+
+  -- Com o rastreamento recebendo cadastros, o aviso em lote da Meta fica desligado.
+  insert into public.notification_subscriptions (workspace_id, user_id, channel, endpoint, config)
+  values ('a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'webpush', 'https://push.test/1', '{}');
+  insert into public.notification_preferences (workspace_id, user_id)
+  values ('a0000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1')
+  on conflict do nothing;
+  if (select count(*) from public.service_notification_recipients('a0000000-0000-0000-0000-000000000001', 'tracked_registration', 0)) <> 1 then
+    raise exception 'FALHOU: push do cadastro rastreado sem destinatário';
+  end if;
+  if (select count(*) from public.service_notification_recipients('a0000000-0000-0000-0000-000000000001', 'registration', 0)) <> 0 then
+    raise exception 'FALHOU: push da Meta deveria ficar desligado com o rastreamento ativo';
   end if;
 
   -- 2. O mesmo cadastro de novo não conta duas vezes.
