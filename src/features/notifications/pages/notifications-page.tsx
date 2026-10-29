@@ -245,7 +245,7 @@ function PreferencesPanel() {
         />
         <ToggleRow
           label="Cadastro"
-          hint="Quando a Meta atribui cadastros novos a um anúncio (a cada sincronização, uns 15 min)."
+          hint="Na hora, com o criativo de origem, quando o site tem o Rastreamento instalado. Sem ele, quando a Meta atribui cadastros a um anúncio (a cada sincronização, uns 15 min)."
           checked={p.notify_registrations}
           onChange={(v) => save({ notify_registrations: v })}
         />
