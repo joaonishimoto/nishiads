@@ -45,35 +45,41 @@ Deno.serve(async (req) => {
 
   if (body.action === "test") {
     const workspaceId = body.workspace_id ?? "";
-    const { data: subs, error } = await admin
-      .from("notification_subscriptions")
-      .select("id, endpoint, config, preferences:notification_preferences(sound_enabled)")
-      .eq("workspace_id", workspaceId)
-      .eq("user_id", userId)
-      .eq("channel", "webpush")
-      .eq("active", true);
-    if (error) {
-      log("error", "push_test_lookup_failed", { userId, error: error.message });
+    // Inscrições e preferências não têm FK entre si (as duas apontam para workspace_members),
+    // então o PostgREST não faz o embed: busca as duas separadas.
+    const [{ data: subs, error }, { data: prefs, error: prefsError }] = await Promise.all([
+      admin
+        .from("notification_subscriptions")
+        .select("id, endpoint, config")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", userId)
+        .eq("channel", "webpush")
+        .eq("active", true),
+      admin
+        .from("notification_preferences")
+        .select("sound_enabled")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+    if (error || prefsError) {
+      log("error", "push_test_lookup_failed", { userId, error: (error ?? prefsError)?.message });
       return json(500, { error: "internal_error" });
     }
     try {
-      const recipients = (subs ?? []).map((s) => {
-        const prefs = s.preferences as { sound_enabled: boolean } | { sound_enabled: boolean }[] | null;
-        const sound = Array.isArray(prefs) ? prefs[0]?.sound_enabled : prefs?.sound_enabled;
-        return {
-          subscription_id: s.id as string,
-          user_id: userId,
-          endpoint: s.endpoint as string,
-          config: s.config as { p256dh?: string; auth?: string },
-          sound_enabled: sound ?? true,
-        };
-      });
+      const recipients = (subs ?? []).map((s) => ({
+        subscription_id: s.id as string,
+        user_id: userId,
+        endpoint: s.endpoint as string,
+        config: s.config as { p256dh?: string; auth?: string },
+        sound_enabled: prefs?.sound_enabled ?? true,
+      }));
       const delivered = await deliverPush(
         admin,
         recipients,
         {
           title: "🔔 Notificações ativas",
-          body: "É assim que suas vendas vão aparecer no Nishistack - ADS.",
+          body: "É assim que suas notificações vão aparecer no Nishistack - ADS.",
           url: `/w/${workspaceId}/vendas`,
           tag: "nishiads-test",
         },

@@ -299,6 +299,8 @@ type NotificationPreferencesRow = {
   quiet_hours_end: string | null;
   sound_enabled: boolean;
   notify_alerts: boolean;
+  notify_registrations: boolean;
+  notify_trials: boolean;
   updated_at: string;
 };
 

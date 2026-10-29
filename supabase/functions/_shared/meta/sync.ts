@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { errorMessage, log } from "../log.ts";
+import { registrationsPushPayload, type RegistrationsByAd } from "../notify/messages.ts";
 import { deliverPush } from "../notify/sale-notifications.ts";
 import { vapidFromEnv } from "../notify/vapid.ts";
 import { GraphClient, MetaApiError, type Usage } from "./graph.ts";
@@ -239,6 +240,8 @@ async function run(ctx: Ctx) {
   // 3. Insights por anúncio e por dia (backfill de 30 dias na primeira vez; depois, 3 dias)
   const window = insightsWindow({ timezone, backfilled_at: account.backfilled_at });
   let insights = 0;
+  // Cadastros a mais que a Meta atribuiu a cada anúncio nesta sincronização (por id interno).
+  const newRegistrations = new Map<string, RegistrationsByAd>();
   for (const range of dateChunks(window.since, window.until)) {
     const pages = graph.paginate<MetaInsightRow>(`${act}/insights`, {
       level: "ad",
@@ -257,7 +260,9 @@ async function run(ctx: Ctx) {
           ...mapInsight(r, currency),
           synced_at: new Date().toISOString(),
         }));
+      const names = new Map(rows.map((r) => [ads.get(r.ad_id), { campaign_name: r.campaign_name ?? null, ad_name: r.ad_name ?? null }]));
       for (const part of chunk(values)) {
+        if (!window.backfill) await countNewRegistrations(admin, part, names, newRegistrations);
         const { error } = await admin.from("ad_insights_daily").upsert(part, { onConflict: "ad_id,date" });
         if (error) throw new Error(`ad_insights_daily: ${error.message}`);
       }
@@ -277,11 +282,69 @@ async function run(ctx: Ctx) {
     })
     .eq("id", account.id);
 
+  if (newRegistrations.size) await notifyRegistrations(admin, account.workspace_id, [...newRegistrations.values()]);
+
   // Vendas que chegaram antes da sincronização agora podem casar com os ids.
   const { error: reattributeError } = await admin.rpc("service_reattribute_sales", { p_workspace_id: account.workspace_id });
   if (reattributeError) log("warn", "meta_reattribute_failed", { accountId: account.id, error: reattributeError.message });
 
   return { campaigns: campaigns.size, adsets: adsets.size, ads: ads.size, insights, backfill: window.backfill };
+}
+
+/** Soma, por anúncio, quanto os cadastros subiram em relação ao que já estava salvo. */
+async function countNewRegistrations(
+  admin: SupabaseClient,
+  part: { ad_id: string | undefined; date: string; registrations: number }[],
+  names: Map<string | undefined, { campaign_name: string | null; ad_name: string | null }>,
+  into: Map<string, RegistrationsByAd>,
+) {
+  const adIds = [...new Set(part.map((v) => v.ad_id).filter((id): id is string => !!id))];
+  const dates = [...new Set(part.map((v) => v.date))];
+  if (!adIds.length) return;
+  const { data, error } = await admin
+    .from("ad_insights_daily")
+    .select("ad_id, date, registrations")
+    .in("ad_id", adIds)
+    .in("date", dates);
+  if (error) {
+    log("warn", "meta_registrations_lookup_failed", { error: error.message });
+    return;
+  }
+  const previous = new Map((data ?? []).map((r) => [`${r.ad_id}:${r.date}`, Number(r.registrations) || 0]));
+  for (const v of part) {
+    if (!v.ad_id) continue;
+    const delta = v.registrations - (previous.get(`${v.ad_id}:${v.date}`) ?? 0);
+    if (delta <= 0) continue;
+    const entry = into.get(v.ad_id) ?? { ...(names.get(v.ad_id) ?? { campaign_name: null, ad_name: null }), count: 0 };
+    entry.count += delta;
+    into.set(v.ad_id, entry);
+  }
+}
+
+/** Avisa quem ligou "Cadastros" nas preferências (respeitando o horário de silêncio). */
+async function notifyRegistrations(admin: SupabaseClient, workspaceId: string, ads: RegistrationsByAd[]) {
+  const vapid = vapidFromEnv();
+  if (!vapid) return;
+  try {
+    const { data: recipients, error } = await admin.rpc("service_notification_recipients", {
+      p_workspace_id: workspaceId,
+      p_kind: "registration",
+      p_amount_cents: 0,
+    });
+    if (error) throw new Error(error.message);
+    const list = recipients ?? [];
+    const delivered = list.length
+      ? await deliverPush(admin, list, registrationsPushPayload(workspaceId, ads, new Date().toISOString()), vapid)
+      : 0;
+    log("info", "registrations_notified", {
+      workspaceId,
+      registrations: ads.reduce((n, a) => n + a.count, 0),
+      recipients: list.length,
+      delivered,
+    });
+  } catch (cause) {
+    log("warn", "registrations_notify_failed", { workspaceId, error: errorMessage(cause) });
+  }
 }
 
 /** Marca a conexão e as contas como "reconectar" e avisa owners/admins (uma vez). */

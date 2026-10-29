@@ -63,7 +63,7 @@ function ThisDevicePanel() {
   const test = useSendTestPush(workspace.id);
 
   const title = "Este dispositivo";
-  const description = "Receba um aviso no celular ou no computador a cada venda e alerta.";
+  const description = "Receba um aviso no celular ou no computador a cada venda, cadastro, teste e alerta.";
 
   if (support.kind === "needs-install") {
     return (
@@ -105,8 +105,8 @@ function ThisDevicePanel() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             {current
-              ? `Você recebe as vendas de “${workspace.name}” aqui.`
-              : `Ative para receber as vendas de “${workspace.name}” neste navegador.`}
+              ? `Você recebe as notificações de “${workspace.name}” aqui.`
+              : `Ative para receber as notificações de “${workspace.name}” neste navegador.`}
           </p>
           <div className="flex shrink-0 flex-wrap gap-2">
             {current ? (
@@ -236,6 +236,18 @@ function PreferencesPanel() {
           label="Venda aprovada"
           checked={p.notify_approved}
           onChange={(v) => save({ notify_approved: v })}
+        />
+        <ToggleRow
+          label="Teste iniciado"
+          hint="Na hora em que o checkout avisa, com o anúncio de origem."
+          checked={p.notify_trials}
+          onChange={(v) => save({ notify_trials: v })}
+        />
+        <ToggleRow
+          label="Cadastro"
+          hint="Quando a Meta atribui cadastros novos a um anúncio (a cada sincronização, uns 15 min)."
+          checked={p.notify_registrations}
+          onChange={(v) => save({ notify_registrations: v })}
         />
         <ToggleRow
           label="Reembolso"
