@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeMenuOptions, ThemeToggle } from "@/components/app/theme-toggle";
 import { BrandLogo, BrandMark, BrandSymbol } from "@/components/app/brand-logo";
 import {
   DropdownMenu,
@@ -299,6 +300,8 @@ function AccountMenu({ base }: { base: string }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <ThemeMenuOptions />
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => void signOut()}
           className="gap-2 text-danger focus:text-danger"
@@ -378,6 +381,7 @@ export function AppShell() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <AccountMenu base={base} />
           </div>
         </header>
