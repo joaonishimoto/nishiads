@@ -277,9 +277,86 @@
   --layer-dialog: 50;
 }
 
-/* Preparação para dark mode futuro — não implementar ainda */
-[data-theme="dark"] {
-  /* Futuras definições semânticas do modo escuro */
+/*
+ * Modo escuro: escolhido no topo ou no menu da conta (salvo no aparelho, classe `.dark`
+ * no <html>). Mesma lógica do claro: leitura em grafite neutro, interação em azul;
+ * azuis clarearam para manter ≥ 4,5:1 e recebem texto escuro por cima.
+ */
+.dark {
+  color-scheme: dark;
+
+  --background: #111418;
+  --foreground: #e8e6df;
+
+  --surface: #171a1f;
+  --surface-raised: #1d2127;
+  --surface-muted: #1b1e24;
+  --surface-hover: #1c2736;
+  --surface-selected: #213350;
+
+  --sidebar-background: #14171c;
+  --sidebar-foreground: #c9cac2;
+  --sidebar-active: #213350;
+  --sidebar-active-foreground: #dce6f5;
+  --sidebar-border: #23272e;
+  --sidebar-muted: #9c9e95;
+  --sidebar-hover: #1b2431;
+  --sidebar-indicator: #8db1e3;
+
+  --border: #262a31;
+  --border-strong: #30353d;
+
+  --input-background: #14171c;
+  --input-border: #3a404a;
+  --input-border-hover: #4a515c;
+
+  --primary: #8db1e3;
+  --primary-foreground: #0f1b2d;
+  --primary-hover: #a3c1ea;
+  --primary-active: #b8cff0;
+
+  --secondary: #213350;
+  --secondary-foreground: #dce6f5;
+  --secondary-hover: #2a4064;
+
+  --muted: #1b1e24;
+  --muted-foreground: #a3a59c;
+
+  --accent: #1c2736;
+  --accent-foreground: #dce6f5;
+
+  --ring: #8db1e3;
+
+  --success: #6fb383;
+  --success-foreground: #0d1a11;
+  --warning: #d6a04f;
+  --warning-foreground: #1f1505;
+  --danger: #e57d73;
+  --danger-foreground: #240c0a;
+  --danger-hover: #ec958d;
+  --success-strong: #8acb9d;
+  --warning-strong: #e7bb75;
+  --danger-strong: #f19c94;
+  --info-strong: #a9c3d6;
+  --info: #86a5bd;
+  --info-foreground: #0e1720;
+  --overlay: color-mix(in srgb, var(--primitive-black) 78%, transparent);
+
+  --chart-1: #8db1e3;
+  --chart-2: #3b5b86;
+  --chart-3: #86a5bd;
+  --chart-4: #d6a04f;
+  --chart-5: #6c6f67;
+
+  /* Marca: o Azul Nishi vira texto claro sobre o grafite; fundos de marca seguem azuis. */
+  --brand-navy: #b8cff0;
+  --brand-cream: #1e3d66;
+
+  --shadow-xs-token: 0 1px 1px color-mix(in srgb, var(--primitive-black) 30%, transparent);
+  --shadow-sm-token: 0 1px 2px color-mix(in srgb, var(--primitive-black) 40%, transparent);
+  --shadow-md-token:
+    0 0 0 1px color-mix(in srgb, var(--primitive-neutral-0) 6%, transparent),
+    0 10px 28px -6px color-mix(in srgb, var(--primitive-black) 60%, transparent);
 }
 
 @layer base {

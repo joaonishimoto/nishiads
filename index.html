@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1e3d66" />
+    <!-- Modo escuro salvo no aparelho (src/lib/theme.ts): aplicado antes da primeira pintura. -->
+    <script>
+      (function () {
+        try {
+          var c = localStorage.getItem("nishiads-tema");
+          var d = c === "dark" || (c === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          if (d) {
+            document.documentElement.classList.add("dark");
+            document.documentElement.style.colorScheme = "dark";
+            document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111418");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="Nishistack - ADS: vendas atribuídas a campanha, conjunto e criativo, em tempo real." />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
