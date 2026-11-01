@@ -28,7 +28,8 @@ import { CAMPAIGNS_VIEW, CampaignTree } from "@/features/results/campaign-tree";
 import { ViewPicker, useViewItems } from "@/features/views/view-picker";
 import { timeAgo } from "@/features/results/recent-sales";
 import { ProductCostsDialog } from "@/features/results/product-costs";
-import { CreativeGrid, flattenAds } from "@/features/results/campaign-visuals";
+import { flattenAds } from "@/features/results/campaign-visuals";
+import { CreativeGrid } from "@/features/results/creative-grid";
 import { cn } from "@/lib/utils";
 
 // Só campanhas e as métricas de cada uma; os KPIs gerais (lucro, ROAS do negócio) ficam no Dashboard.
