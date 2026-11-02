@@ -229,6 +229,9 @@ Deno.serve(async (req) => {
       {
         conversation_id: conversationId,
         role: "assistant",
+        // As duas linhas precisam das mesmas colunas: num insert em lote, coluna que falta
+        // numa linha vira NULL (não o default) e quebra o "not null" de content.
+        content: "",
         status: "streaming",
         // Um milissegundo depois: a ordem pela data fica sempre pergunta → resposta.
         created_at: new Date(now + 1).toISOString(),
