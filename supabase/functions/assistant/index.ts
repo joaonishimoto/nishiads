@@ -333,7 +333,7 @@ async function generate(
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
           thinking: { type: "adaptive" },
-          output_config: { effort: "medium" },
+          output_config: { effort: "high" },
           cache_control: { type: "ephemeral" },
           system: SYSTEM_PROMPT,
           tools: [PROPOSE_TOOL],
