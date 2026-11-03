@@ -4,6 +4,7 @@ import {
   averageCpa,
   creative,
   registrationsOf,
+  trialsOf,
   verdictOf,
 } from "@/features/results/creative-insights";
 
@@ -31,6 +32,15 @@ describe("criativos", () => {
     });
     expect(registrationsOf(m({ registrations: 4 }))).toEqual({ count: 4, source: "meta" });
     expect(registrationsOf(m())).toEqual({ count: 0, source: null });
+  });
+
+  it("prefere os testes do rastreamento próprio aos da Meta", () => {
+    expect(trialsOf(m({ trials: 0, tracked: { teste: 3 } }))).toEqual({
+      count: 3,
+      source: "rastreio",
+    });
+    expect(trialsOf(m({ trials: 2 }))).toEqual({ count: 2, source: "meta" });
+    expect(trialsOf(m())).toEqual({ count: 0, source: null });
   });
 
   it("dá o veredito pelo ROAS e, sem venda, pelo CPA médio", () => {

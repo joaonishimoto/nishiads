@@ -29,6 +29,7 @@ import {
   averageCpa,
   creative,
   registrationsOf,
+  trialsOf,
   verdictOf,
   type Verdict,
 } from "@/features/results/creative-insights";
@@ -473,8 +474,16 @@ function CreativeCard({ row, ctx }: { row: Row; ctx: Ctx }) {
       value: compact(engagement),
       hint: "todas as interações com o anúncio",
     });
-  if (m.trials > 0)
-    extras.push({ label: "Testes", value: fmt.int(m.trials), hint: "testes grátis iniciados" });
+  const trials = trialsOf(m);
+  if (trials.count > 0)
+    extras.push({
+      label: "Testes",
+      value: fmt.int(trials.count),
+      hint:
+        trials.source === "rastreio"
+          ? "testes grátis do rastreamento próprio"
+          : "testes grátis atribuídos pela Meta",
+    });
 
   return (
     <li

@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { derived, type Level, type NodeMetrics, type TreeNode } from "@/features/results/metrics";
 import { fmt, RoasBadge, Thumb } from "@/features/results/components";
-import { registrationsOf } from "@/features/results/creative-insights";
+import { registrationsOf, trialsOf } from "@/features/results/creative-insights";
 import { BudgetValue, DeliveryToggle, useMetaControls } from "@/features/meta/controls";
 import type { ViewCatalog } from "@/features/views/catalog";
 import {
@@ -95,7 +95,8 @@ const COLUMN_HINTS: Record<BaseColumnKey, string> = {
   spend: "quanto a Meta cobrou",
   registrations: "contas criadas: as do seu app (rastreio); sem o script, as atribuídas pela Meta",
   cpl: "gasto ÷ cadastros",
-  trials: "testes grátis iniciados, atribuídos pela Meta",
+  trials:
+    "testes grátis iniciados: os do seu app (rastreio); sem o script, os atribuídos pela Meta",
   sales: "vendas aprovadas atribuídas",
   revenue: "valor bruto das vendas",
   roas: "retorno sobre o gasto: faturamento ÷ gasto",
@@ -140,7 +141,12 @@ const BASE_COLUMNS: (Column & { key: BaseColumnKey })[] = [
     value: cpl,
     render: (m, c) => fmt.money(cpl(m), c.currency),
   },
-  { key: "trials", label: "Testes", value: (m) => m.trials, render: (m) => fmt.int(m.trials) },
+  {
+    key: "trials",
+    label: "Testes",
+    value: (m) => trialsOf(m).count,
+    render: (m) => fmt.int(trialsOf(m).count),
+  },
   { key: "sales", label: "Vendas", value: (m) => m.sales, render: (m) => fmt.int(m.sales) },
   {
     key: "revenue",

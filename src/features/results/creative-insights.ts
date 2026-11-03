@@ -19,6 +19,17 @@ export function registrationsOf(m: NodeMetrics): {
   return { count: 0, source: null };
 }
 
+/** Testes grátis do criativo: os do rastreamento próprio (nishistack('teste')) ou, sem script, os da Meta. */
+export function trialsOf(m: NodeMetrics): {
+  count: number;
+  source: "rastreio" | "meta" | null;
+} {
+  const tracked = m.tracked["teste"] ?? 0;
+  if (tracked > 0) return { count: tracked, source: "rastreio" };
+  if (m.trials > 0) return { count: m.trials, source: "meta" };
+  return { count: 0, source: null };
+}
+
 const ratio = (n: number, d: number) => (d > 0 ? n / d : null);
 const costPer = (m: NodeMetrics, n: number) =>
   n > 0 && m.spendCents > 0 ? Math.round(m.spendCents / n) : null;
