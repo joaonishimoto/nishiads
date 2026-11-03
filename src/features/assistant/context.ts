@@ -3,7 +3,7 @@
  * totais, série diária e a árvore Campanha › Conjunto › Anúncio), em JSON compacto e com
  * nomes de campo em português para o modelo ler sem tradução.
  */
-import { registrationsOf } from "@/features/results/creative-insights";
+import { registrationsOf, trialsOf } from "@/features/results/creative-insights";
 import {
   derived,
   type Budget,
@@ -34,7 +34,7 @@ function metrics(m: NodeMetrics) {
     ctr_pct: pct(derived.ctr(m)),
     cpc: derived.cpc(m) === null ? null : money(derived.cpc(m)!),
     cadastros: registrationsOf(m).count,
-    testes: m.trials,
+    testes: trialsOf(m).count,
     vendas: m.sales,
     receita: money(m.revenueCents),
     roas: ratio(derived.roas(m)),
@@ -58,6 +58,7 @@ function totals(t: Totals) {
     cliques_link: t.linkClicks,
     cadastros_rastreio: t.tracked["cadastro"] ?? 0,
     cadastros_meta: t.registrations,
+    testes_rastreio: t.tracked["teste"] ?? 0,
     testes_meta: t.metaTrials,
     vendas_atribuidas_pct: pct(t.matchedShare),
     vendas_sem_origem: t.unmatchedApprovedCount,
