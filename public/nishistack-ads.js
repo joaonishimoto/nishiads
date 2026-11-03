@@ -8,7 +8,9 @@
  * Quando alguém chega com UTM ou fbclid na URL, a origem fica guardada por 90 dias num
  * cookie do domínio principal (vale para site.com e app.site.com). Depois, no app:
  *   nishistack('cadastro', { id: usuario.id })
- * manda o evento com essa origem, e o Nishistack Ads liga ao anúncio.
+ * manda o evento com essa origem, e o Nishistack Ads liga ao anúncio. Eventos depois do
+ * cadastro (ex.: nishistack('teste', { id: sessao.id, user: usuario.id })) herdam o anúncio
+ * do cadastro quando chegam sem a origem guardada.
  */
 (function () {
   "use strict";
@@ -112,6 +114,7 @@
       key: key,
       event: String(event),
       id: props && props.id != null ? String(props.id) : undefined,
+      user: props && props.user != null ? String(props.user) : undefined,
       event_id: randomId(),
       visitor: visitor(),
       touch: storedTouch(),

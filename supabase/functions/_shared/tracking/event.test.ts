@@ -35,6 +35,7 @@ describe("eventos do rastreamento", () => {
         event: "cadastro",
         dedupe_key: "123",
         visitor_id: "v1",
+        person_ref: null,
         utm_source: "FB",
         utm_medium: null,
         utm_campaign: null,
@@ -53,6 +54,14 @@ describe("eventos do rastreamento", () => {
     );
     expect(parsed.ok && parsed.event.dedupe_key).toBe("e1");
     expect(parsed.ok && parsed.event.utm_content).toBeNull();
+  });
+
+  it("lê quem fez o evento, para herdar o anúncio do cadastro", () => {
+    const parsed = parseTrackBody(
+      JSON.stringify({ key: KEY, event: "teste", id: "cs_1", user: "u-1", event_id: "e1" }),
+    );
+    expect(parsed.ok && parsed.event.person_ref).toBe("u-1");
+    expect(parsed.ok && parsed.event.dedupe_key).toBe("cs_1");
   });
 
   it("recusa o que não é do script", () => {

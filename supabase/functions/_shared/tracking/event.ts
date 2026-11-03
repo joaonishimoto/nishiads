@@ -10,6 +10,8 @@ export type TrackedEvent = {
   event: string;
   dedupe_key: string;
   visitor_id: string | null;
+  /** Quem fez o evento no app (ex.: id do usuário), quando o app informa. */
+  person_ref: string | null;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
@@ -77,6 +79,7 @@ export function parseTrackBody(
       event,
       dedupe_key: dedupe,
       visitor_id: text(body.visitor, 100),
+      person_ref: text(body.user, 200),
       ...utm,
       fbclid: text(touch.fbclid, 500),
       landing_url: text(touch.url, 1000),
