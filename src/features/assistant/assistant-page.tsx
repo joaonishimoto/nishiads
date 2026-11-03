@@ -5,6 +5,7 @@ import {
   ArrowUp,
   Check,
   CircleDollarSign,
+  Copy,
   CirclePause,
   CirclePlay,
   History,
@@ -270,9 +271,13 @@ function AssistantContent() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <Panel title="Histórico" className="hidden lg:block">
+        <Panel
+          title="Histórico"
+          className="sticky top-16 hidden max-h-[calc(100dvh-6rem)] self-start overflow-hidden lg:flex lg:flex-col"
+        >
           {historyList}
         </Panel>
+        {/* Sem rolagem interna: a conversa rola com a página e a caixa de texto fica presa embaixo. */}
         <Panel className="flex min-w-0 flex-col">
           <Messages
             messages={shown}
@@ -280,6 +285,7 @@ function AssistantContent() {
             tree={c?.tree ?? []}
             onAsk={send}
             ready={!!fresh}
+            conversationId={selectedId}
           />
           <Composer
             disabled={!fresh}
@@ -293,11 +299,6 @@ function AssistantContent() {
           />
         </Panel>
       </div>
-      <p className="text-center text-xs text-muted-foreground">
-        O assistente usa IA e pode errar. Confira os números antes de mudar campanhas; nada é
-        alterado na Meta sem a sua confirmação. Pode sair da tela: a resposta continua sendo escrita
-        e fica no histórico.
-      </p>
 
       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
         <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
@@ -347,7 +348,7 @@ function ConversationList({
     );
   }
   return (
-    <ul className="max-h-[calc(100dvh-22rem)] space-y-px overflow-y-auto p-2">
+    <ul className="min-h-0 flex-1 space-y-px overflow-y-auto p-2">
       {items.map((item) => (
         <li key={item.id} className="group relative">
           <button
@@ -395,71 +396,90 @@ function Messages({
   tree,
   onAsk,
   ready,
+  conversationId,
 }: {
   messages: ChatMessage[];
   loading: boolean;
   tree: TreeNode[];
   onAsk: (text: string) => void;
   ready: boolean;
+  conversationId: string | null;
 }) {
-  const scroller = useRef<HTMLDivElement>(null);
-  const last = messages.at(-1);
+  const end = useRef<HTMLDivElement>(null);
+  // Acompanha a resposta só enquanto a pessoa está no fim da página; se ela subir para ler,
+  // o texto novo não puxa a tela de volta.
+  const follow = useRef(true);
   useEffect(() => {
-    const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, last?.content, last?.proposals.length]);
+    const onScroll = () => {
+      const doc = document.documentElement;
+      follow.current = window.innerHeight + window.scrollY >= doc.scrollHeight - 160;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
+  const last = messages.at(-1);
+  // Pergunta nova ou outra conversa aberta: vai para o fim, mesmo que a pessoa tenha subido.
+  useEffect(() => {
+    follow.current = true;
+  }, [conversationId, messages.length]);
+  useEffect(() => {
+    if (follow.current && messages.length > 0) end.current?.scrollIntoView({ block: "end" });
+  }, [conversationId, messages.length, last?.content, last?.proposals.length]);
+
+  if (loading) {
+    return (
+      <p className="flex min-h-[min(60dvh,32rem)] items-center justify-center text-sm text-muted-foreground">
+        Carregando a conversa…
+      </p>
+    );
+  }
+  if (messages.length === 0) {
+    return (
+      <div className="flex min-h-[min(60dvh,32rem)] flex-col items-center justify-center px-4 py-8 text-center">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-primary">
+          <Sparkles className="h-5 w-5" strokeWidth={1.75} />
+        </span>
+        <h2 className="mt-3 text-base font-semibold text-foreground">
+          O que você quer entender das campanhas?
+        </h2>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+          O assistente lê os números do período e dos filtros acima. Comece por uma destas
+          perguntas ou escreva a sua.
+        </p>
+        <div className="mt-5 grid w-full max-w-xl gap-2 sm:grid-cols-2">
+          {STARTERS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={!ready}
+              onClick={() => onAsk(s)}
+              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-surface-hover disabled:opacity-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div
-      ref={scroller}
-      className="h-[calc(100dvh-26rem)] min-h-80 overflow-y-auto px-4 py-4"
-      aria-live="polite"
-    >
-      {loading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Carregando a conversa…</p>
-      ) : messages.length === 0 ? (
-        <div className="flex h-full flex-col items-center justify-center text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-primary">
-            <Sparkles className="h-5 w-5" strokeWidth={1.75} />
-          </span>
-          <h2 className="mt-3 text-sm font-semibold text-foreground">
-            O que você quer entender das campanhas?
-          </h2>
-          <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            O assistente lê os números do período e dos filtros acima. Comece por uma destas
-            perguntas ou escreva a sua.
-          </p>
-          <div className="mt-4 flex max-w-xl flex-wrap justify-center gap-2">
-            {STARTERS.map((s) => (
-              <Button
-                key={s}
-                variant="outline"
-                size="sm"
-                className="h-auto whitespace-normal py-1.5 text-left"
-                disabled={!ready}
-                onClick={() => onAsk(s)}
-              >
-                {s}
-              </Button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="mx-auto max-w-3xl space-y-5">
-          {messages.map((m) =>
-            m.role === "user" ? (
-              <div key={m.id} className="flex justify-end">
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-accent px-3 py-2 text-sm text-foreground">
-                  {m.content}
-                </p>
-              </div>
-            ) : (
-              <AssistantMessage key={m.id} message={m} tree={tree} />
-            ),
-          )}
-          {last?.role === "user" && <Thinking />}
-        </div>
-      )}
+    <div className="min-h-[min(60dvh,32rem)] px-4 py-5 sm:px-6" aria-live="polite">
+      <div className="mx-auto max-w-3xl space-y-6">
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="flex justify-end">
+              <p className="max-w-[85%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
+                {m.content}
+              </p>
+            </div>
+          ) : (
+            <AssistantMessage key={m.id} message={m} tree={tree} />
+          ),
+        )}
+        {last?.role === "user" && <Thinking />}
+      </div>
+      <div ref={end} className="scroll-mb-[calc(9rem+env(safe-area-inset-bottom))] md:scroll-mb-28" />
     </div>
   );
 }
@@ -470,7 +490,14 @@ function Thinking() {
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
         <Sparkles className="h-3.5 w-3.5" />
       </span>
-      <p className="animate-pulse pt-1 text-sm text-muted-foreground">Analisando os números…</p>
+      <p className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
+        <span className="flex gap-1" aria-hidden>
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" />
+        </span>
+        Analisando os números…
+      </p>
     </div>
   );
 }
@@ -482,7 +509,7 @@ function AssistantMessage({ message: m, tree }: { message: ChatMessage; tree: Tr
   if (writing && !m.content && m.proposals.length === 0) return <Thinking />;
   return (
     <div className="flex gap-3">
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
+      <span className="mt-0.5 hidden h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-primary sm:flex">
         <Sparkles className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1 space-y-3">
@@ -494,7 +521,11 @@ function AssistantMessage({ message: m, tree }: { message: ChatMessage; tree: Tr
             ))}
           </div>
         )}
-        {writing && <p className="animate-pulse text-xs text-muted-foreground">Escrevendo…</p>}
+        {writing ? (
+          <p className="animate-pulse text-xs text-muted-foreground">Escrevendo…</p>
+        ) : (
+          m.content && m.status === "done" && <CopyButton text={m.content} />
+        )}
         {m.status === "stopped" && (
           <p className="text-xs text-muted-foreground">Resposta interrompida por você.</p>
         )}
@@ -505,6 +536,28 @@ function AssistantMessage({ message: m, tree }: { message: ChatMessage; tree: Tr
         )}
       </div>
     </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          toast.error("Não foi possível copiar.");
+        }
+      }}
+      className="-ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+    >
+      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? "Copiado" : "Copiar resposta"}
+    </button>
   );
 }
 
@@ -620,37 +673,42 @@ function Composer({
     setText("");
   };
   return (
-    <form
-      className="flex items-end gap-2 border-t border-border p-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-    >
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            submit();
-          }
+    <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 rounded-b-xl border-t border-border bg-surface/95 px-3 pt-3 pb-2 backdrop-blur md:bottom-4">
+      <form
+        className="mx-auto flex max-w-3xl items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
         }}
-        placeholder="Pergunte sobre as campanhas…"
-        aria-label="Pergunta para o assistente"
-        maxLength={4000}
-        rows={1}
-        className="max-h-40 min-h-10 resize-none"
-      />
-      {streaming ? (
-        <Button type="button" size="icon" variant="outline" onClick={onStop} aria-label="Parar">
-          <Square />
-        </Button>
-      ) : (
-        <Button type="submit" size="icon" disabled={disabled || !text.trim()} aria-label="Enviar">
-          <ArrowUp />
-        </Button>
-      )}
-    </form>
+      >
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder="Pergunte sobre as campanhas…"
+          aria-label="Pergunta para o assistente"
+          maxLength={4000}
+          rows={1}
+          className="field-sizing-content max-h-40 min-h-10 resize-none"
+        />
+        {streaming ? (
+          <Button type="button" size="icon" variant="outline" onClick={onStop} aria-label="Parar">
+            <Square />
+          </Button>
+        ) : (
+          <Button type="submit" size="icon" disabled={disabled || !text.trim()} aria-label="Enviar">
+            <ArrowUp />
+          </Button>
+        )}
+      </form>
+      <p className="mx-auto mt-1.5 max-w-3xl text-center text-[11px] leading-4 text-muted-foreground">
+        A IA pode errar: confira os números. Nada muda na Meta sem a sua confirmação.
+      </p>
+    </div>
   );
 }
