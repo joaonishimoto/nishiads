@@ -67,7 +67,8 @@ type BaseColumnKey =
   | "conversion"
   | "registrations"
   | "cpl"
-  | "trials";
+  | "trials"
+  | "cpt";
 
 function cpm(m: NodeMetrics) {
   return m.impressions > 0 ? Math.round((m.spendCents / m.impressions) * 1000) : null;
@@ -84,6 +85,11 @@ function cpl(m: NodeMetrics) {
   const n = registrations(m);
   return n > 0 && m.spendCents > 0 ? Math.round(m.spendCents / n) : null;
 }
+/** Custo por teste grátis. */
+function cpt(m: NodeMetrics) {
+  const n = trialsOf(m).count;
+  return n > 0 && m.spendCents > 0 ? Math.round(m.spendCents / n) : null;
+}
 /** Vendas por clique no link. */
 function conversion(m: NodeMetrics) {
   return m.linkClicks > 0 ? m.sales / m.linkClicks : null;
@@ -97,6 +103,7 @@ const COLUMN_HINTS: Record<BaseColumnKey, string> = {
   cpl: "gasto ÷ cadastros",
   trials:
     "testes grátis iniciados: os do seu app (rastreio); sem o script, os atribuídos pela Meta",
+  cpt: "gasto ÷ testes",
   sales: "vendas aprovadas atribuídas",
   revenue: "valor bruto das vendas",
   roas: "retorno sobre o gasto: faturamento ÷ gasto",
@@ -146,6 +153,12 @@ const BASE_COLUMNS: (Column & { key: BaseColumnKey })[] = [
     label: "Testes",
     value: (m) => trialsOf(m).count,
     render: (m) => fmt.int(trialsOf(m).count),
+  },
+  {
+    key: "cpt",
+    label: "Custo por teste",
+    value: cpt,
+    render: (m, c) => fmt.money(cpt(m), c.currency),
   },
   { key: "sales", label: "Vendas", value: (m) => m.sales, render: (m) => fmt.int(m.sales) },
   {
@@ -320,6 +333,7 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
   "registrations",
   "cpl",
   "trials",
+  "cpt",
   "sales",
   "revenue",
   "roas",
