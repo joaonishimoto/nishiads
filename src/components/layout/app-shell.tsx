@@ -31,6 +31,7 @@ import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { usePendingAlertsCount } from "@/features/alerts/api";
+import { useSetupSteps } from "@/features/onboarding/setup";
 
 // Mesma casca do Nishistack: sidebar clara (estilo Notion) que recolhe e expande, topo com a conta e,
 // no celular, barra de abas com "Mais" abrindo o menu completo.
@@ -58,10 +59,13 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
   };
   const assistant: NavItem = { to: `${base}/assistente`, label: "Assistente IA", icon: Sparkles };
   const integrations: NavItem = { to: `${base}/integracoes`, label: "Integrações", icon: Plug };
+  // A Visão geral é o checklist de primeiros passos: só aparece enquanto falta algum.
+  const { loaded, complete } = useSetupSteps();
+  const showOverview = loaded && !complete;
   return {
     base,
     groups: [
-      { label: "", items: [overview] },
+      ...(showOverview ? [{ label: "", items: [overview] }] : []),
       { label: "Resultados", items: [dashboard, campaigns, assistant, alerts] },
       {
         label: "Recursos",
@@ -71,7 +75,9 @@ function useNav(): { groups: NavGroup[]; footer: NavItem[]; tabs: NavItem[]; bas
     /** Fica no pé da sidebar, separado das áreas de trabalho. */
     footer: [{ to: `${base}/ajustes`, label: "Ajustes", icon: Settings }],
     // Integrações (configurada uma vez) fica no "Mais"; alertas pedem resposta no dia a dia.
-    tabs: [{ ...overview, label: "Início" }, dashboard, campaigns, alerts],
+    tabs: showOverview
+      ? [{ ...overview, label: "Início" }, dashboard, campaigns, alerts]
+      : [dashboard, campaigns, assistant, alerts],
   };
 }
 
