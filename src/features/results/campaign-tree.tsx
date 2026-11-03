@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { derived, type Level, type NodeMetrics, type TreeNode } from "@/features/results/metrics";
 import { fmt, RoasBadge, Thumb } from "@/features/results/components";
+import { registrationsOf } from "@/features/results/creative-insights";
 import { BudgetValue, DeliveryToggle, useMetaControls } from "@/features/meta/controls";
 import type { ViewCatalog } from "@/features/views/catalog";
 import {
@@ -74,11 +75,14 @@ function cpm(m: NodeMetrics) {
 function ticket(m: NodeMetrics) {
   return m.sales > 0 ? Math.round(m.revenueCents / m.sales) : null;
 }
+/** Cadastros da linha: os do rastreamento próprio; sem script, os que a Meta atribuiu. */
+function registrations(m: NodeMetrics) {
+  return registrationsOf(m).count;
+}
 /** Custo por cadastro. */
 function cpl(m: NodeMetrics) {
-  return m.registrations > 0 && m.spendCents > 0
-    ? Math.round(m.spendCents / m.registrations)
-    : null;
+  const n = registrations(m);
+  return n > 0 && m.spendCents > 0 ? Math.round(m.spendCents / n) : null;
 }
 /** Vendas por clique no link. */
 function conversion(m: NodeMetrics) {
@@ -89,7 +93,7 @@ function conversion(m: NodeMetrics) {
 const COLUMN_HINTS: Record<BaseColumnKey, string> = {
   all_clicks: "todos os cliques: link, perfil, curtir, ver mais",
   spend: "quanto a Meta cobrou",
-  registrations: "contas criadas, atribuídas pela Meta",
+  registrations: "contas criadas: as do seu app (rastreio); sem o script, as atribuídas pela Meta",
   cpl: "gasto ÷ cadastros",
   trials: "testes grátis iniciados, atribuídos pela Meta",
   sales: "vendas aprovadas atribuídas",
@@ -127,8 +131,8 @@ const BASE_COLUMNS: (Column & { key: BaseColumnKey })[] = [
   {
     key: "registrations",
     label: "Cadastros",
-    value: (m) => m.registrations,
-    render: (m) => fmt.int(m.registrations),
+    value: registrations,
+    render: (m) => fmt.int(registrations(m)),
   },
   {
     key: "cpl",
