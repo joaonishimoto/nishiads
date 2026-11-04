@@ -284,3 +284,24 @@ describe("Stripe: dados de clique da Meta", () => {
     expect(result.kind === "sale" && result.sale.fbc).toBe("fb.1.1792970000000.abc");
   });
 });
+
+describe("Stripe: pessoa que comprou", () => {
+  it("lê metadata.user_id da Checkout Session e da assinatura", async () => {
+    const session = await stripeAdapter.normalize({
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_p", mode: "subscription", subscription: "sub_p", payment_status: "no_payment_required", amount_total: 0,
+          metadata: { user_id: "u-123", product_name: "Premium", product_id: "prod_1" },
+        },
+      },
+    });
+    expect(session.kind === "sale" && session.sale.person_ref).toBe("u-123");
+
+    mockStripeApi({ "/v1/invoice_payments": { data: [] } });
+    const payload = JSON.parse(invoicePaid);
+    payload.data.object.parent.subscription_details.metadata = { utm_source: "FB", user_id: "u-456" };
+    const invoice = await stripeAdapter.normalize(payload, { secret: SECRET });
+    expect(invoice.kind === "sale" && invoice.sale.person_ref).toBe("u-456");
+  });
+});
