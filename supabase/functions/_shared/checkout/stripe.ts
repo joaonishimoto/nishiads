@@ -89,6 +89,11 @@ async function emailHash(object: Obj, email: string | null): Promise<string | nu
 
 const hasUtm = (u: Partial<Record<string, string | null>>) => Object.values(u).some(Boolean);
 
+/** Quem comprou, no app do cliente: metadata.user_id (o checkout da Drinfy manda assim). */
+function personRef(metadata: unknown): string | null {
+  return cleanText(obj(metadata)?.user_id, 200);
+}
+
 async function stripeGet(apiKey: string, path: string, params: Record<string, string>): Promise<Obj> {
   const url = new URL(`${STRIPE_API}${path}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.append(key, value);
@@ -158,6 +163,7 @@ async function fromCheckoutSession(type: string, session: Obj, apiKey: string | 
       customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
       ...utmsFrom(session.metadata),
       ...clickIdsFrom(session.metadata, unixToMs(session.created)),
+      person_ref: personRef(session.metadata),
       paid_at: status === "approved" ? (unixToIso(session.created) ?? new Date().toISOString()) : null,
     }),
   };
@@ -198,6 +204,7 @@ async function fromSubscriptionCheckout(type: string, session: Obj, apiKey: stri
       customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
       ...utmsFrom(session.metadata),
       ...clickIdsFrom(session.metadata, unixToMs(session.created)),
+      person_ref: personRef(session.metadata),
     }),
   };
 }
@@ -218,7 +225,11 @@ async function subscriptionTracking(metadata: unknown, subscriptionId: string | 
     utms = utmsFrom(source);
     observedAt = unixToMs(session?.created);
   }
-  return { ...utms, ...clickIdsFrom(source, observedAt) };
+  return {
+    ...utms,
+    ...clickIdsFrom(source, observedAt),
+    person_ref: personRef(source) ?? personRef(metadata),
+  };
 }
 
 function invoiceProduct(invoice: Obj) {

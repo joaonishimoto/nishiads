@@ -28,6 +28,11 @@ export interface NormalizedSale {
   fbc?: string | null;
   fbp?: string | null;
   client_user_agent?: string | null;
+  /**
+   * Quem comprou, no app do cliente (metadata.user_id na Stripe). Uma venda sem UTM herda
+   * o anúncio do cadastro dessa pessoa no rastreamento do app.
+   */
+  person_ref?: string | null;
 }
 
 export interface VerifyInput {

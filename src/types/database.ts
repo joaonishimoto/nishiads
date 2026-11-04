@@ -252,6 +252,8 @@ type SaleRow = Timestamps & {
   fbc: string | null;
   fbp: string | null;
   client_user_agent: string | null;
+  /** Quem comprou, no app do cliente (metadata.user_id na Stripe). */
+  person_ref: string | null;
   raw_payload: Json;
 };
 
