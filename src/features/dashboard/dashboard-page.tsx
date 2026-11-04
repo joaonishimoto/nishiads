@@ -79,6 +79,8 @@ const CARD_LABELS = {
   spend: "Gasto",
   profit: "Lucro",
   roas: "ROAS",
+  trial_sales: "Vendas + testes",
+  trial_roas: "ROAS com testes",
   cpa: "CPA",
   approved: "Vendas aprovadas",
   ticket: "Ticket médio",
@@ -114,6 +116,8 @@ const CARD_HINTS: Partial<Record<CardKey, string>> = {
   spend: "quanto a Meta cobrou",
   profit: "faturamento − taxas − custos − gasto",
   roas: "retorno sobre o gasto: faturamento ÷ gasto",
+  trial_sales: "vendas aprovadas + testes em andamento",
+  trial_roas: "faturamento + valor dos testes ÷ gasto",
   cpa: "custo por aquisição: gasto ÷ vendas",
   ticket: "faturamento ÷ vendas",
   matched: "vendas ligadas a um anúncio",
@@ -128,6 +132,9 @@ const STRIP_HINTS: Partial<Record<StripKey, string>> = {
 };
 
 const EXTRA_CARDS: CardKey[] = ["impressions", "clicks", "ctr", "cpc", "cpm", "fees"];
+
+/** Cartões que só aparecem sozinhos (sem template) quando há testes no período. */
+const TRIAL_CARDS: CardKey[] = ["trial_sales", "trial_roas"];
 
 /** O que dá para ligar e desligar no Dashboard; sem template, fica como sempre foi. */
 const DASHBOARD_VIEW: ViewCatalog = {
@@ -303,7 +310,15 @@ function AllView({
   const base = `/w/${workspace.id}`;
   const cur = workspace.currency;
   const [target, setTarget] = useRoasTarget(workspace.id);
-  const { sales, totals: t, previous: p, series, tree: rawTree } = results.computed!;
+  const {
+    sales,
+    totals: t,
+    previous: p,
+    withTrials: wt,
+    previousWithTrials: pwt,
+    series,
+    tree: rawTree,
+  } = results.computed!;
   const tree = rawTree ?? [];
   const meta = results.metaConnected;
   const comparison = filters.comparisonLabel;
@@ -325,8 +340,12 @@ function AllView({
   const counts = Object.fromEntries(
     STATUS_FILTERS.map((f) => [f.key, sales.filter((s) => f.match(s.status)).length]),
   );
-  const { items, shown } = useViewItems("dashboard", DASHBOARD_VIEW);
-  const cardKeys = items.filter((k): k is CardKey => k in CARD_LABELS);
+  const { items, shown, active } = useViewItems("dashboard", DASHBOARD_VIEW);
+  // Sem template, os cartões de testes só entram quando há teste no período.
+  const cardKeys = items.filter(
+    (k): k is CardKey =>
+      k in CARD_LABELS && (!!active || t.trialCount > 0 || !TRIAL_CARDS.includes(k as CardKey)),
+  );
   const stripKeys = items.filter((k): k is StripKey => k in STRIP_LABELS);
   const ctr = (x: { impressions: number; linkClicks: number } | null) =>
     x && x.impressions > 0 ? x.linkClicks / x.impressions : null;
@@ -392,6 +411,42 @@ function AllView({
         delta={spendChange(t.roas, p?.roas ?? null)}
         hint={t.roas === null ? "sem gasto no período" : `meta ${fmt.roas(target)}`}
         info="Faturamento dividido pelo gasto. Inclui vendas sem origem identificada."
+      />
+    ),
+    trial_sales: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.trial_sales}
+        value={fmt.int(wt.salesCount)}
+        delta={change(wt.salesCount, pwt?.salesCount ?? null)}
+        hint={
+          wt.openTrials
+            ? `${plural(t.approvedCount, "venda", "vendas")} + ${plural(wt.openTrials, "teste", "testes")}`
+            : "sem testes em andamento"
+        }
+        info="Vendas aprovadas mais os testes do período que ainda não pagaram. Quem já pagou conta só como venda."
+      />
+    ),
+    trial_roas: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.trial_roas}
+        value={fmt.roas(wt.roas)}
+        delta={spendChange(wt.roas, pwt?.roas ?? null)}
+        hint={
+          wt.roas === null
+            ? "sem gasto no período"
+            : wt.trialValueCents
+              ? `+${formatMoney(wt.trialValueCents, cur)} em testes`
+              : `meta ${fmt.roas(target)}`
+        }
+        info={
+          "Faturamento mais o valor dos testes em andamento, dividido pelo gasto. Cada teste vale o " +
+          "preço da última venda aprovada do mesmo produto." +
+          (wt.unpricedTrials
+            ? ` ${plural(wt.unpricedTrials, "teste ficou", "testes ficaram")} sem valor porque ainda não há venda aprovada para comparar.`
+            : "")
+        }
       />
     ),
     cpa: (emphasis) => (

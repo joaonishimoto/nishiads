@@ -252,6 +252,69 @@ export function computeTotals(
   };
 }
 
+/**
+ * Preço de referência de um teste: o valor da última venda aprovada de cada produto e, para
+ * produto sem venda ainda, o da última venda aprovada da conta (na moeda da conta).
+ */
+export type TrialPrices = { byProduct: Map<string, number>; fallbackCents: number | null };
+
+export function trialPrices(
+  approved: Pick<ResultSale, "product_id" | "gross_amount_cents" | "currency">[],
+  currency: string,
+): TrialPrices {
+  // `approved` vem da mais recente para a mais antiga: a primeira de cada produto vale.
+  const byProduct = new Map<string, number>();
+  let fallbackCents: number | null = null;
+  for (const s of approved) {
+    if (s.currency !== currency || s.gross_amount_cents <= 0) continue;
+    fallbackCents ??= s.gross_amount_cents;
+    if (s.product_id && !byProduct.has(s.product_id))
+      byProduct.set(s.product_id, s.gross_amount_cents);
+  }
+  return { byProduct, fallbackCents };
+}
+
+/** Vendas e ROAS contando os testes ainda em andamento como se já fossem vendas. */
+export type TrialsAsSales = {
+  /** Testes do período que ainda não pagaram (os que pagaram já estão nas vendas aprovadas). */
+  openTrials: number;
+  /** Valor projetado desses testes pelo preço do plano. */
+  trialValueCents: number;
+  /** Testes sem preço de referência (nenhuma venda aprovada na conta ainda). */
+  unpricedTrials: number;
+  salesCount: number;
+  revenueCents: number;
+  roas: number | null;
+};
+
+export function trialsAsSales(
+  sales: Pick<ResultSale, "status" | "trial_converted_at" | "product_id">[],
+  totals: Pick<Totals, "approvedCount" | "revenueCents" | "spendCents">,
+  prices: TrialPrices,
+): TrialsAsSales {
+  let open = 0;
+  let value = 0;
+  let unpriced = 0;
+  for (const s of sales) {
+    if (s.status !== "trialing" || s.trial_converted_at) continue;
+    open++;
+    const price = (s.product_id && prices.byProduct.get(s.product_id)) || prices.fallbackCents;
+    if (price) value += price;
+    else unpriced++;
+  }
+  const count = totals.approvedCount + open;
+  const revenue = totals.revenueCents + value;
+  const spend = totals.spendCents;
+  return {
+    openTrials: open,
+    trialValueCents: value,
+    unpricedTrials: unpriced,
+    salesCount: count,
+    revenueCents: revenue,
+    roas: spend > 0 ? revenue / spend : null,
+  };
+}
+
 /** Variação relativa (0,12 = +12%). Sem base, não há comparação. */
 export function change(current: number | null, previous: number | null): number | null {
   if (current === null || previous === null || previous === 0) return null;

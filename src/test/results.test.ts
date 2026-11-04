@@ -7,6 +7,8 @@ import {
   diagnoseUnmatched,
   filterSales,
   saleDeductions,
+  trialPrices,
+  trialsAsSales,
   type AdStructure,
   type InsightRow,
   type ProductCost,
@@ -274,5 +276,50 @@ describe("ações da Meta", () => {
     expect(actionValue(total, ["omni_landing_page_view", "landing_page_view"])).toBe(5);
     expect(actionValue(total, ["lead", "offsite_conversion.fb_pixel_lead"])).toBe(1);
     expect(actionValue(total, ["video_view"])).toBe(0);
+  });
+});
+
+describe("testes como vendas", () => {
+  const prices = trialPrices(
+    [
+      { product_id: "plano", gross_amount_cents: 4_990, currency: "BRL" },
+      { product_id: "plano", gross_amount_cents: 3_990, currency: "BRL" },
+      { product_id: "outro", gross_amount_cents: 100, currency: "USD" },
+    ],
+    "BRL",
+  );
+
+  it("usa o preço da venda aprovada mais recente de cada produto", () => {
+    expect(prices.byProduct.get("plano")).toBe(4_990);
+    expect(prices.byProduct.has("outro")).toBe(false);
+    expect(prices.fallbackCents).toBe(4_990);
+  });
+
+  it("soma só os testes que ainda não pagaram, sem contar a conversão duas vezes", () => {
+    const sales = [
+      sale({ status: "approved", gross_amount_cents: 4_990, product_id: "plano" }),
+      sale({ status: "trialing", gross_amount_cents: 0, product_id: "plano" }),
+      sale({ status: "trialing", gross_amount_cents: 0, product_id: null }),
+      sale({
+        status: "trialing",
+        gross_amount_cents: 0,
+        product_id: "plano",
+        trial_converted_at: "2026-10-21T15:00:00Z",
+      }),
+    ];
+    const totals = computeTotals(sales, [], new Map(), "BRL");
+    const r = trialsAsSales(sales, { ...totals, spendCents: 5_000 }, prices);
+    expect(r.openTrials).toBe(2);
+    expect(r.salesCount).toBe(3);
+    expect(r.trialValueCents).toBe(9_980);
+    expect(r.revenueCents).toBe(14_970);
+    expect(r.roas).toBeCloseTo(2.994);
+  });
+
+  it("sem venda aprovada na conta, o teste fica sem valor e sem gasto não há ROAS", () => {
+    const sales = [sale({ status: "trialing", gross_amount_cents: 0 })];
+    const totals = computeTotals(sales, [], new Map(), "BRL");
+    const r = trialsAsSales(sales, totals, trialPrices([], "BRL"));
+    expect(r).toMatchObject({ openTrials: 1, unpricedTrials: 1, trialValueCents: 0, roas: null });
   });
 });
