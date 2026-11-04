@@ -125,6 +125,30 @@ export function useAdStructure(workspaceId: string, version: string | null, enab
   });
 }
 
+/**
+ * Últimas vendas aprovadas da conta (qualquer período), só para achar o preço do plano de
+ * cada produto e projetar o valor dos testes. Fica sob ["sales", workspace] (Realtime).
+ */
+export function useLatestApprovedPrices(workspaceId: string) {
+  return useQuery({
+    queryKey: ["sales", workspaceId, "latest-approved-prices"],
+    queryFn: async (): Promise<
+      Pick<ResultSale, "product_id" | "gross_amount_cents" | "currency">[]
+    > => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("product_id, gross_amount_cents, currency")
+        .eq("workspace_id", workspaceId)
+        .eq("status", "approved")
+        .gt("gross_amount_cents", 0)
+        .order("paid_at", { ascending: false, nullsFirst: false })
+        .limit(500);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export const productKeys = { all: (workspaceId: string) => ["products", workspaceId] as const };
 
 export function useProducts(workspaceId: string) {

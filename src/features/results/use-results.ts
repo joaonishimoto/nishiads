@@ -1,13 +1,21 @@
 import { useMemo } from "react";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useAdAccounts } from "@/features/meta/api";
-import { useAdStructure, useInsights, useProducts, useResultSales } from "@/features/results/data";
+import {
+  useAdStructure,
+  useInsights,
+  useLatestApprovedPrices,
+  useProducts,
+  useResultSales,
+} from "@/features/results/data";
 import {
   buildTree,
   computeTotals,
   dailySeries,
   filterInsights,
   filterSales,
+  trialPrices,
+  trialsAsSales,
   type ProductCost,
 } from "@/features/results/metrics";
 import type { ResultFiltersState } from "@/features/results/filters";
@@ -40,6 +48,7 @@ export function useResults(
   const prevInsights = useInsights(workspace.id, filters.previous.days, lastSync, metaConnected);
   const events = useTrackingEvents(workspace.id, filters.range);
   const prevEvents = useTrackingEvents(workspace.id, filters.previous.range);
+  const approvedPrices = useLatestApprovedPrices(workspace.id);
   const structure = useAdStructure(workspace.id, lastSync, metaConnected && tree);
 
   // Conta de anúncio de cada campanha, para o filtro de conta valer nos eventos do rastreamento.
@@ -50,6 +59,10 @@ export function useResults(
   const productMap = useMemo(
     () => new Map<string, ProductCost>((products.data ?? []).map((p) => [p.id, p])),
     [products.data],
+  );
+  const prices = useMemo(
+    () => trialPrices(approvedPrices.data ?? [], workspace.currency),
+    [approvedPrices.data, workspace.currency],
   );
   const scope = { accountId: filters.accountId, productId: filters.productId };
 
@@ -65,10 +78,14 @@ export function useResults(
       (!!e.campaign_id && campaignAccount.get(e.campaign_id) === filters.accountId);
     const ev = (events.data ?? []).filter(inScope);
     const pev = (prevEvents.data ?? []).filter(inScope);
+    const totals = computeTotals(s, ins, productMap, workspace.currency, ev);
+    const previous = ps ? computeTotals(ps, pins, productMap, workspace.currency, pev) : null;
     return {
       sales: s,
-      totals: computeTotals(s, ins, productMap, workspace.currency, ev),
-      previous: ps ? computeTotals(ps, pins, productMap, workspace.currency, pev) : null,
+      totals,
+      previous,
+      withTrials: trialsAsSales(s, totals, prices),
+      previousWithTrials: ps && previous ? trialsAsSales(ps, previous, prices) : null,
       series: dailySeries(s, ins, filters.days, workspace.timezone, workspace.currency),
       tree:
         tree && structure.data
@@ -95,6 +112,7 @@ export function useResults(
     prevEvents.data,
     campaignAccount,
     productMap,
+    prices,
     filters.accountId,
     filters.productId,
     filters.days,
@@ -108,6 +126,7 @@ export function useResults(
     accounts.isPending ||
     sales.isPending ||
     products.isPending ||
+    approvedPrices.isPending ||
     (metaConnected && insights.isPending) ||
     (metaConnected && tree && structure.isPending);
   const failed = [
