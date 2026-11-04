@@ -29,6 +29,7 @@ import { useUser } from "@/features/auth/auth-provider";
 import { SettingsNav } from "@/features/workspaces/pages/settings-nav";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import {
+  inviteErrorMessage,
   useInvitations,
   useInviteMember,
   useMembers,
@@ -90,7 +91,7 @@ function InviteForm() {
   const { workspace, role } = useWorkspace();
   const invite = useInviteMember(workspace.id);
   const roles = assignableRoles(role);
-  const [values, setValues] = useState<InviteFormValues>({ email: "", role: "viewer" });
+  const [values, setValues] = useState<InviteFormValues>({ email: "", role: "viewer", password: "" });
   const [errors, setErrors] = useState<FieldErrors<InviteFormValues>>({});
 
   function onSubmit(event: FormEvent) {
@@ -101,21 +102,25 @@ function InviteForm() {
     invite.mutate(result.data, {
       onSuccess: (outcome) => {
         const messages = {
-          added: "Pessoa adicionada ao workspace.",
-          invited: "Convite registrado. A pessoa entra assim que criar a conta com este e-mail.",
+          created: "Conta criada. Passe o e-mail e a senha para a pessoa entrar; ela pode trocar a senha em Ajustes › Conta.",
+          added: "Esta pessoa já tinha conta: entrou no workspace e continua com a senha dela.",
+          invited: "Este e-mail tem um cadastro não confirmado. A pessoa entra assim que confirmar o e-mail.",
           already_member: "Esta pessoa já faz parte do workspace.",
         } as const;
-        toast.success(messages[outcome]);
-        setValues((v) => ({ ...v, email: "" }));
+        toast.success(messages[outcome], { duration: outcome === "created" ? 10_000 : undefined });
+        setValues((v) => ({ ...v, email: "", password: "" }));
       },
     });
   }
 
   return (
-    <Panel title="Convidar pessoa" description="Quem já tem conta entra na hora; quem não tem entra ao se cadastrar.">
-      <form className="grid gap-4 p-4" onSubmit={onSubmit} noValidate>
-        {invite.isError && <LoadError>{friendlyError(invite.error)}</LoadError>}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-start">
+    <Panel
+      title="Convidar pessoa"
+      description="A conta é criada na hora com a senha que você definir. Quem já tem conta só entra no workspace."
+    >
+      <form className="grid gap-4 p-4" onSubmit={onSubmit} noValidate autoComplete="off">
+        {invite.isError && <LoadError>{inviteErrorMessage(invite.error)}</LoadError>}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_minmax(0,2fr)_auto] sm:items-start">
           <FormField label="E-mail" error={errors.email}>
             <Input
               type="email"
@@ -142,6 +147,16 @@ function InviteForm() {
                 ))}
               </SelectContent>
             </Select>
+          </FormField>
+          <FormField label="Senha inicial" error={errors.password} hint="8+ caracteres, letras e números.">
+            <Input
+              type="text"
+              autoComplete="new-password"
+              spellCheck={false}
+              placeholder="Senha para o 1º acesso"
+              value={values.password}
+              onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
+            />
           </FormField>
           <Button type="submit" className="sm:mt-6" loading={invite.isPending} loadingText="Convidando…">
             <MailPlus />

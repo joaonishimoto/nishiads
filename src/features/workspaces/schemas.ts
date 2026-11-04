@@ -50,6 +50,12 @@ export const ROLE_DESCRIPTIONS: Record<WorkspaceRole, string> = {
 export const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido."),
   role: z.enum(["owner", "admin", "viewer"]),
+  password: z
+    .string()
+    .min(8, "Use pelo menos 8 caracteres.")
+    .max(72, "Use no máximo 72 caracteres.")
+    .regex(/[a-zA-Z]/, "Inclua pelo menos uma letra.")
+    .regex(/\d/, "Inclua pelo menos um número."),
 });
 
 export type InviteFormValues = z.infer<typeof inviteSchema>;

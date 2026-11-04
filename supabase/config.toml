@@ -55,3 +55,7 @@ verify_jwt = false
 # Eventos do script nos sites rastreados: público, a chave da fonte vai no corpo.
 [functions.track]
 verify_jwt = false
+
+# Convite com senha inicial: valida o token e o papel (owner/admin) dentro da função e cria a conta com a service_role.
+[functions.members]
+verify_jwt = false

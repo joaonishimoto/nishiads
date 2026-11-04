@@ -41,7 +41,12 @@ describe("workspace", () => {
     expect(validate(workspaceSchema, { name: "  ", timezone: "UTC", currency: "BRL" }).errors?.name).toBeDefined();
   });
   it("convite valida e-mail", () => {
-    expect(validate(inviteSchema, { email: "x", role: "viewer" }).errors?.email).toBeDefined();
+    expect(validate(inviteSchema, { email: "x", role: "viewer", password: "senha1234" }).errors?.email).toBeDefined();
+  });
+  it("convite exige senha inicial com letras e números", () => {
+    expect(validate(inviteSchema, { email: "a@b.com", role: "viewer", password: "senha1234" }).data).toBeTruthy();
+    expect(validate(inviteSchema, { email: "a@b.com", role: "viewer", password: "" }).errors?.password).toBeDefined();
+    expect(validate(inviteSchema, { email: "a@b.com", role: "viewer", password: "12345678" }).errors?.password).toBeDefined();
   });
 });
 
