@@ -164,6 +164,33 @@ begin
     raise exception 'FALHOU: sem venda devolveu % / % / %', r.n, r.name, r.spend;
   end if;
 
+  -- Teste iniciado conta como venda de valor zero: com um teste em a4 (R$ 30 de gasto),
+  -- a4 sai de "sem venda" e o CPA vira o custo por teste (R$ 30). Convertido, o teste
+  -- deixa de contar, porque a venda aprovada é que conta.
+  insert into public.sales (workspace_id, provider, external_order_id, status, gross_amount_cents, currency,
+    created_at, campaign_id, adset_id, ad_id, attribution_status)
+  values (ws, 'stripe', 'al-trial', 'trialing', 0, 'BRL', '2026-10-26 13:00:00+00',
+    'ec000000-0000-0000-0000-000000000001', 'e5000000-0000-0000-0000-000000000001', 'ed000000-0000-0000-0000-000000000004', 'matched');
+  select count(*) into n
+  from private.alert_rule_matches(ws, 'spend_without_sale', 'ad', 'today', 1000, null, 0, null, null, noon)
+  where object_name = 'Carrossel';
+  if n <> 0 then raise exception 'FALHOU: teste iniciado não contou como venda'; end if;
+  select cpa_cents into n
+  from private.alert_rule_matches(ws, 'cpa_above', 'ad', 'today', 1000, null, 0, null, null, noon)
+  where object_name = 'Carrossel';
+  if n <> 3000 then raise exception 'FALHOU: custo por teste de a4 deveria ser 3000, veio %', n; end if;
+  select count(*) into n
+  from private.alert_rule_matches(ws, 'roas_below', 'ad', 'today', null, 0.5, 1000, null, null, noon)
+  where object_name = 'Carrossel';
+  if n <> 1 then raise exception 'FALHOU: teste sem receita deveria manter o ROAS zero'; end if;
+  update public.sales set converted_sale_id = (select id from public.sales where external_order_id = 'al-1')
+  where external_order_id = 'al-trial';
+  select count(*) into n
+  from private.alert_rule_matches(ws, 'spend_without_sale', 'ad', 'today', 1000, null, 0, null, null, noon)
+  where object_name = 'Carrossel';
+  if n <> 1 then raise exception 'FALHOU: teste convertido ainda conta como venda'; end if;
+  delete from public.sales where external_order_id = 'al-trial';
+
   -- Últimos 3 dias: a1 gastou R$ 550 e teve a venda de ontem → não é "sem venda".
   select count(*) into n
   from private.alert_rule_matches(ws, 'spend_without_sale', 'ad', 'last_3d', 10000, null, 0, null, null, noon)
