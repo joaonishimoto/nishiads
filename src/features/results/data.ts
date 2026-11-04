@@ -157,7 +157,7 @@ export function useProducts(workspaceId: string) {
     queryFn: async (): Promise<ProductCost[]> => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, cost_cents, fee_percent_bps, fee_fixed_cents")
+        .select("id, name, cost_cents, fee_percent_bps, fee_fixed_cents, sale_value_cents")
         .eq("workspace_id", workspaceId)
         .order("name");
       if (error) throw error;
@@ -170,7 +170,10 @@ export function useUpdateProductCost(workspaceId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (
-      product: Pick<ProductCost, "id" | "cost_cents" | "fee_percent_bps" | "fee_fixed_cents">,
+      product: Pick<
+        ProductCost,
+        "id" | "cost_cents" | "fee_percent_bps" | "fee_fixed_cents" | "sale_value_cents"
+      >,
     ) => {
       const { id, ...values } = product;
       const { error } = await supabase

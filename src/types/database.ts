@@ -217,6 +217,7 @@ type ProductRow = Timestamps & {
   cost_cents: number;
   fee_percent_bps: number;
   fee_fixed_cents: number;
+  sale_value_cents: number | null;
 };
 
 type SaleRow = Timestamps & {

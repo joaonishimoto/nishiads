@@ -61,8 +61,8 @@ export function useResults(
     [products.data],
   );
   const prices = useMemo(
-    () => trialPrices(approvedPrices.data ?? [], workspace.currency),
-    [approvedPrices.data, workspace.currency],
+    () => trialPrices(approvedPrices.data ?? [], workspace.currency, products.data ?? []),
+    [approvedPrices.data, workspace.currency, products.data],
   );
   const scope = { accountId: filters.accountId, productId: filters.productId };
 

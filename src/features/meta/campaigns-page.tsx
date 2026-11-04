@@ -94,7 +94,7 @@ function CampaignsContent() {
         <>
           <Button variant="outline" onClick={() => setCostsOpen(true)}>
             <Coins />
-            Custos
+            Produtos
           </Button>
           {canManage && results.metaConnected && (
             <Button
