@@ -112,23 +112,40 @@ export function useDeleteWorkspace(workspaceId: string) {
   });
 }
 
+export type InviteOutcome = "created" | "added" | "already_member" | "invited";
+
+/** Cria a conta já confirmada (ou adiciona quem já tem conta) pela Edge Function `members`. */
 export function useInviteMember(workspaceId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (values: { email: string; role: WorkspaceRole }) => {
-      const { data, error } = await supabase.rpc("invite_workspace_member", {
-        p_workspace_id: workspaceId,
-        p_email: values.email,
-        p_role: values.role,
+    mutationFn: async (values: { email: string; role: WorkspaceRole; password: string }) => {
+      const { data, error } = await supabase.functions.invoke<{ ok: true; outcome: InviteOutcome }>("members", {
+        body: { workspace_id: workspaceId, ...values },
       });
-      if (error) throw error;
-      return data;
+      if (error) {
+        const context = (error as { context?: Response }).context;
+        const payload = context ? ((await context.json().catch(() => null)) as { error?: string } | null) : null;
+        throw new InviteError(payload?.error ?? "function_error");
+      }
+      return data!.outcome;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: workspaceKeys.members(workspaceId) });
       qc.invalidateQueries({ queryKey: workspaceKeys.invitations(workspaceId) });
     },
   });
+}
+
+export class InviteError extends Error {}
+
+export function inviteErrorMessage(error: unknown): string {
+  const code = error instanceof InviteError ? error.message : "";
+  if (code === "forbidden") return "Só owners e admins podem convidar.";
+  if (code === "owner_only") return "Só um owner pode convidar outro owner.";
+  if (code === "unauthorized") return "Sua sessão expirou. Entre novamente.";
+  if (code === "weak_password") return "Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.";
+  if (code === "invalid_body") return "Confira o e-mail, o papel e a senha.";
+  return "Não foi possível convidar agora. Tente de novo.";
 }
 
 export function useUpdateMemberRole(workspaceId: string) {

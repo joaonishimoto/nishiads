@@ -98,6 +98,12 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 - **Controle pelo app** (`meta-actions`): owners e admins pausam e ativam campanha, conjunto ou anúncio e mudam o orçamento (diário ou total, o tipo que o objeto já usa) direto na tabela de Campanhas. Precisa da permissão `ads_management` no login da Meta. A função confere o papel, limita 20 ações por minuto por usuário, confere na Meta onde está o orçamento (campanha CBO × conjunto), faz o POST, relê o objeto e os filhos e grava tudo em `meta_action_log` (Histórico na tela). A lógica fica em `_shared/meta/write.ts` (`setMetaObjectStatus`, `setMetaBudget`), reusada pelas regras automáticas.
 - **Agendar o cron** (uma vez, no SQL Editor): `select private.schedule_meta_sync('https://<ref>.supabase.co');`. Cria o segredo `nishiads_cron_secret` no Vault, que o job manda no header `x-cron-secret`.
 
+## Membros
+
+- **Convidar:** Ajustes › Membros. Owner/admin informa e-mail, papel e uma **senha inicial**. A função `members` (service role) cria a conta já confirmada e coloca a pessoa no workspace: ela entra na hora com esse e-mail e senha, e troca a senha em Ajustes › Conta.
+- **Quem já tem conta** só entra no workspace; a senha dela não muda. Se o e-mail tem um cadastro **não confirmado**, fica como convite pendente até a pessoa confirmar (não damos acesso a quem não provou ser dono do e-mail).
+- **Regras:** só owner/admin convida; só owner concede owner. A senha segue a mesma regra do app (8+ caracteres, letras e números).
+
 ## Alertas e regras automáticas
 
 - **Regras** (Alertas › Regras, owner/admin): *gastou sem vender*, *ROAS abaixo da meta* ou *CPA acima do máximo*, por campanha, conjunto ou anúncio, olhando hoje, os últimos 3 ou 7 dias (fuso do workspace). Escopo opcional por conta e campanha, e um gasto mínimo antes de julgar ROAS e CPA. Os números são os mesmos do dashboard: vendas aprovadas atribuídas ao item e gasto dos insights diários. Só itens **ativos** na Meta entram.
