@@ -283,6 +283,12 @@ const TRACKED_EVENTS: { event: string; label: string; hint: string; costLabel?: 
     hint: "nishistack('teste') no seu app, ligado ao anúncio pelo UTM",
   },
   {
+    event: "checkout",
+    label: "Inícios de checkout (rastreio)",
+    hint: "nishistack('checkout') no seu app ao abrir o checkout, ligado ao anúncio pelo UTM",
+    costLabel: "Custo por início de checkout (rastreio)",
+  },
+  {
     event: "compra",
     label: "Compras (rastreio)",
     hint: "nishistack('compra') no seu app, ligado ao anúncio pelo UTM",
