@@ -79,6 +79,7 @@ const CARD_LABELS = {
   spend: "Gasto",
   profit: "Lucro",
   roas: "ROAS",
+  earnings: "Ganhos",
   trial_sales: "Vendas + testes",
   trial_roas: "ROAS com testes",
   cpa: "CPA",
@@ -116,6 +117,7 @@ const CARD_HINTS: Partial<Record<CardKey, string>> = {
   spend: "quanto a Meta cobrou",
   profit: "faturamento − taxas − custos − gasto",
   roas: "retorno sobre o gasto: faturamento ÷ gasto",
+  earnings: "faturamento + valor dos testes em andamento, em reais",
   trial_sales: "vendas aprovadas + testes em andamento",
   trial_roas: "faturamento + valor dos testes ÷ gasto",
   cpa: "custo por aquisição: gasto ÷ vendas",
@@ -134,7 +136,7 @@ const STRIP_HINTS: Partial<Record<StripKey, string>> = {
 const EXTRA_CARDS: CardKey[] = ["impressions", "clicks", "ctr", "cpc", "cpm", "fees"];
 
 /** Cartões que só aparecem sozinhos (sem template) quando há testes no período. */
-const TRIAL_CARDS: CardKey[] = ["trial_sales", "trial_roas"];
+const TRIAL_CARDS: CardKey[] = ["earnings", "trial_sales", "trial_roas"];
 
 /** O que dá para ligar e desligar no Dashboard; sem template, fica como sempre foi. */
 const DASHBOARD_VIEW: ViewCatalog = {
@@ -203,7 +205,7 @@ export function DashboardPage() {
           {view === "all" && <ViewPicker page="dashboard" catalog={DASHBOARD_VIEW} />}
           <Button variant="outline" onClick={() => setCostsOpen(true)}>
             <Coins />
-            Custos
+            Produtos
           </Button>
         </>
       }
@@ -413,6 +415,36 @@ function AllView({
         info="Faturamento dividido pelo gasto. Inclui vendas sem origem identificada."
       />
     ),
+    earnings: (emphasis) => (
+      <MetricCard
+        emphasis={emphasis}
+        label={CARD_LABELS.earnings}
+        value={formatMoney(wt.revenueCents, cur)}
+        delta={change(wt.revenueCents, pwt?.revenueCents ?? null)}
+        hint={
+          wt.unpricedTrials ? (
+            <button
+              type="button"
+              className="underline-offset-2 hover:text-primary hover:underline"
+              onClick={onOpenCosts}
+            >
+              informe o valor por venda
+            </button>
+          ) : wt.trialValueCents ? (
+            `${formatMoney(t.revenueCents, cur)} vendas + ${formatMoney(wt.trialValueCents, cur)} testes`
+          ) : (
+            comparison
+          )
+        }
+        info={
+          "Faturamento das vendas aprovadas mais o valor dos testes em andamento. Cada teste vale o " +
+          "valor por venda do produto (em Produtos) ou, sem ele, o preço da última venda aprovada." +
+          (wt.unpricedTrials
+            ? ` ${plural(wt.unpricedTrials, "teste ficou", "testes ficaram")} sem valor: informe o valor por venda do produto.`
+            : "")
+        }
+      />
+    ),
     trial_sales: (emphasis) => (
       <MetricCard
         emphasis={emphasis}
@@ -442,9 +474,9 @@ function AllView({
         }
         info={
           "Faturamento mais o valor dos testes em andamento, dividido pelo gasto. Cada teste vale o " +
-          "preço da última venda aprovada do mesmo produto." +
+          "valor por venda do produto ou, sem ele, o preço da última venda aprovada." +
           (wt.unpricedTrials
-            ? ` ${plural(wt.unpricedTrials, "teste ficou", "testes ficaram")} sem valor porque ainda não há venda aprovada para comparar.`
+            ? ` ${plural(wt.unpricedTrials, "teste ficou", "testes ficaram")} sem valor porque ainda não há venda aprovada nem valor por venda informado.`
             : "")
         }
       />
@@ -546,7 +578,7 @@ function AllView({
         delta={change(t.feesCents + t.costCents, p ? p.feesCents + p.costCents : null)}
         invert
         hint={noCosts ? "informe os custos" : comparison}
-        info="Taxas do checkout mais o custo dos produtos vendidos, como cadastrado em Custos."
+        info="Taxas do checkout mais o custo dos produtos vendidos, como cadastrado em Produtos."
       />
     ),
   };

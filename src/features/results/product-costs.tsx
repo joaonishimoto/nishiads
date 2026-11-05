@@ -20,9 +20,10 @@ import { useUpdateProductCost } from "@/features/results/data";
 import type { ProductCost } from "@/features/results/metrics";
 import { friendlyError } from "@/lib/errors";
 
-type Draft = { cost: number; feePct: string; feeFixed: number };
+type Draft = { value: number; cost: number; feePct: string; feeFixed: number };
 
 const toDraft = (p: ProductCost): Draft => ({
+  value: (p.sale_value_cents ?? 0) / 100,
   cost: p.cost_cents / 100,
   feePct: p.fee_percent_bps ? String(p.fee_percent_bps / 100).replace(".", ",") : "",
   feeFixed: p.fee_fixed_cents / 100,
@@ -50,7 +51,9 @@ export function ProductCostsDialog({
     const d = drafts[p.id];
     if (!d) return false;
     const o = toDraft(p);
-    return d.cost !== o.cost || d.feePct !== o.feePct || d.feeFixed !== o.feeFixed;
+    return (
+      d.value !== o.value || d.cost !== o.cost || d.feePct !== o.feePct || d.feeFixed !== o.feeFixed
+    );
   });
 
   const save = async () => {
@@ -60,6 +63,7 @@ export function ProductCostsDialog({
         const pct = Number(d.feePct.replace(",", ".") || 0);
         await update.mutateAsync({
           id: p.id,
+          sale_value_cents: d.value > 0 ? Math.round(d.value * 100) : null,
           cost_cents: Math.round(d.cost * 100),
           fee_percent_bps: Math.min(
             10_000,
@@ -68,7 +72,7 @@ export function ProductCostsDialog({
           fee_fixed_cents: Math.round(d.feeFixed * 100),
         });
       }
-      toast.success("Custos salvos. O lucro já foi recalculado.");
+      toast.success("Produtos salvos. Ganhos e lucro já foram recalculados.");
       onOpenChange(false);
     } catch (error) {
       toast.error(friendlyError(error));
@@ -79,10 +83,11 @@ export function ProductCostsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Custos dos produtos</DialogTitle>
+          <DialogTitle>Valores e custos dos produtos</DialogTitle>
           <DialogDescription>
-            Lucro = faturamento − taxas − custo do produto − gasto em anúncios. Sem taxa preenchida,
-            usamos o valor líquido que o checkout informa.
+            O valor por venda dá valor aos testes em andamento (vazio: preço da última venda
+            aprovada). Lucro = faturamento − taxas − custo do produto − gasto em anúncios. Sem taxa
+            preenchida, usamos o valor líquido que o checkout informa.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
@@ -108,8 +113,19 @@ export function ProductCostsDialog({
                   <p className="mb-2.5 truncate text-sm font-medium text-foreground" aria-hidden>
                     {p.name}
                   </p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <div className="col-span-2 space-y-1 sm:col-span-1">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="space-y-1">
+                      <Label htmlFor={`value-${p.id}`} className="text-xs">
+                        Valor por venda
+                      </Label>
+                      <MoneyInput
+                        id={`value-${p.id}`}
+                        currency={workspace.currency}
+                        value={d.value}
+                        onChange={(v) => set({ value: v })}
+                      />
+                    </div>
+                    <div className="space-y-1">
                       <Label htmlFor={`cost-${p.id}`} className="text-xs">
                         Custo por venda
                       </Label>
@@ -152,7 +168,7 @@ export function ProductCostsDialog({
           )}
           {!canManage && products.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Só owners e admins podem mudar os custos.
+              Só owners e admins podem mudar valores e custos.
             </p>
           )}
         </DialogBody>
@@ -167,7 +183,7 @@ export function ProductCostsDialog({
               loading={update.isPending}
               loadingText="Salvando…"
             >
-              Salvar custos
+              Salvar
             </Button>
           )}
         </DialogFooter>

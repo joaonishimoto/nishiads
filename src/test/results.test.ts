@@ -316,6 +316,32 @@ describe("testes como vendas", () => {
     expect(r.roas).toBeCloseTo(2.994);
   });
 
+  it("o valor por venda informado no produto manda sobre a última venda aprovada", () => {
+    const p = trialPrices(
+      [{ product_id: "plano", gross_amount_cents: 4_990, currency: "BRL" }],
+      "BRL",
+      [
+        { id: "plano", sale_value_cents: 6_700 },
+        { id: "vazio", sale_value_cents: null },
+      ],
+    );
+    expect(p.byProduct.get("plano")).toBe(6_700);
+    expect(p.byProduct.has("vazio")).toBe(false);
+    expect(p.fallbackCents).toBe(4_990);
+  });
+
+  it("sem venda aprovada, os testes valem o valor por venda informado", () => {
+    const sales = [
+      sale({ status: "trialing", gross_amount_cents: 0, product_id: "drinfy" }),
+      sale({ status: "trialing", gross_amount_cents: 0, product_id: null }),
+    ];
+    const totals = computeTotals(sales, [], new Map(), "BRL");
+    const p = trialPrices([], "BRL", [{ id: "drinfy", sale_value_cents: 6_700 }]);
+    const r = trialsAsSales(sales, totals, p);
+    expect(r).toMatchObject({ openTrials: 2, unpricedTrials: 0, trialValueCents: 13_400 });
+    expect(r.revenueCents).toBe(13_400);
+  });
+
   it("sem venda aprovada na conta, o teste fica sem valor e sem gasto não há ROAS", () => {
     const sales = [sale({ status: "trialing", gross_amount_cents: 0 })];
     const totals = computeTotals(sales, [], new Map(), "BRL");

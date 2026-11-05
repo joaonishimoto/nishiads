@@ -75,6 +75,8 @@ export type ProductCost = {
   cost_cents: number;
   fee_percent_bps: number;
   fee_fixed_cents: number;
+  /** Valor de cada venda informado pelo usuário; dá valor aos testes em andamento. */
+  sale_value_cents?: number | null;
 };
 
 export type ResultFilters = { accountId: string | null; productId: string | null };
@@ -253,17 +255,25 @@ export function computeTotals(
 }
 
 /**
- * Preço de referência de um teste: o valor da última venda aprovada de cada produto e, para
- * produto sem venda ainda, o da última venda aprovada da conta (na moeda da conta).
+ * Preço de referência de um teste. Por produto: o valor por venda que o usuário informou ou,
+ * sem ele, o da última venda aprovada do produto. Para produto sem nenhum dos dois: o da última
+ * venda aprovada da conta ou, se a conta ainda não vendeu, o primeiro valor informado.
  */
 export type TrialPrices = { byProduct: Map<string, number>; fallbackCents: number | null };
 
 export function trialPrices(
   approved: Pick<ResultSale, "product_id" | "gross_amount_cents" | "currency">[],
   currency: string,
+  products: Pick<ProductCost, "id" | "sale_value_cents">[] = [],
 ): TrialPrices {
-  // `approved` vem da mais recente para a mais antiga: a primeira de cada produto vale.
   const byProduct = new Map<string, number>();
+  let configured: number | null = null;
+  for (const p of products) {
+    if (!p.sale_value_cents || p.sale_value_cents <= 0) continue;
+    byProduct.set(p.id, p.sale_value_cents);
+    configured ??= p.sale_value_cents;
+  }
+  // `approved` vem da mais recente para a mais antiga: a primeira de cada produto vale.
   let fallbackCents: number | null = null;
   for (const s of approved) {
     if (s.currency !== currency || s.gross_amount_cents <= 0) continue;
@@ -271,7 +281,7 @@ export function trialPrices(
     if (s.product_id && !byProduct.has(s.product_id))
       byProduct.set(s.product_id, s.gross_amount_cents);
   }
-  return { byProduct, fallbackCents };
+  return { byProduct, fallbackCents: fallbackCents ?? configured };
 }
 
 /** Vendas e ROAS contando os testes ainda em andamento como se já fossem vendas. */
