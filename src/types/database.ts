@@ -340,6 +340,23 @@ type NotificationPreferencesRow = {
   updated_at: string;
 };
 
+export type DailySummaryPeriod = "today" | "yesterday";
+
+type DailySummarySettingsRow = {
+  workspace_id: string;
+  user_id: string;
+  enabled: boolean;
+  /** "21:00:00", no fuso do workspace. */
+  send_time: string;
+  period: DailySummaryPeriod;
+  title_template: string;
+  body_template: string;
+  last_sent_on: string | null;
+  last_sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AlertCondition = "spend_without_sale" | "roas_below" | "cpa_above";
 export type AlertLevel = "campaign" | "adset" | "ad";
 export type AlertWindow = "today" | "last_3d" | "last_7d";
@@ -539,6 +556,7 @@ export type Database = {
         "workspace_id" | "user_id" | "channel"
       >;
       notification_preferences: Table<NotificationPreferencesRow, "workspace_id" | "user_id">;
+      daily_summary_settings: Table<DailySummarySettingsRow, "workspace_id" | "user_id">;
       alert_rules: Table<AlertRuleRow, "workspace_id" | "name" | "condition" | "level">;
       view_templates: Table<ViewTemplateRow, "workspace_id" | "page" | "name" | "items">;
       alerts: Table<
@@ -577,6 +595,10 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      daily_summary_numbers: {
+        Args: { p_workspace_id: string; p_period?: DailySummaryPeriod };
+        Returns: Record<string, unknown>;
+      };
       create_workspace: {
         Args: { p_name: string; p_timezone?: string; p_currency?: string };
         Returns: WorkspaceRow;
