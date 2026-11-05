@@ -246,6 +246,12 @@ function PreferencesPanel() {
           onChange={(v) => save({ notify_trials: v })}
         />
         <ToggleRow
+          label="Checkout com falha"
+          hint="Cartão recusado (se a pessoa não acertar em 20 min), checkout abandonado e cobrança recusada no fim do teste. Precisa dos eventos de falha no webhook da Stripe."
+          checked={p.notify_checkout_failures}
+          onChange={(v) => save({ notify_checkout_failures: v })}
+        />
+        <ToggleRow
           label="Cadastro"
           hint="Na hora, com o criativo de origem, quando o site tem o Rastreamento instalado. Sem ele, quando a Meta atribui cadastros a um anúncio (a cada sincronização, uns 15 min)."
           checked={p.notify_registrations}

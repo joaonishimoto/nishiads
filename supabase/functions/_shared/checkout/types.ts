@@ -45,8 +45,44 @@ export interface VerifyInput {
 
 export type VerifyResult = { ok: true } | { ok: false; reason: string };
 
+/**
+ * Tentativa de checkout que não deu certo:
+ * declined (cartão recusado), expired (checkout abandonado) ou
+ * renewal_failed (cobrança recusada no fim do teste ou na renovação).
+ */
+export type CheckoutFailureKind = "declined" | "expired" | "renewal_failed";
+
+export interface NormalizedCheckoutFailure {
+  kind: CheckoutFailureKind;
+  /** Id da tentativa no provedor (seti_/pi_/cs_/in_...). */
+  external_ref: string;
+  /** Checkout Session da tentativa, para conferir depois se foi concluída. */
+  session_ref: string | null;
+  subscription_ref: string | null;
+  amount_cents: number;
+  currency: string;
+  external_product_id: string | null;
+  product_name: string | null;
+  customer_email_hash: string | null;
+  person_ref: string | null;
+  /** decline_code/código do erro, ex.: insufficient_funds. */
+  reason_code: string | null;
+  reason_message: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  /** Quando a pessoa começou a tentar (abertura do checkout ou a recusa). */
+  started_at: string | null;
+  occurred_at: string | null;
+  /** Minutos de espera antes do aviso (a pessoa pode acertar o cartão logo depois). */
+  delay_minutes: number;
+}
+
 export type NormalizeResult =
   | { kind: "sale"; sale: NormalizedSale }
+  | { kind: "failure"; failure: NormalizedCheckoutFailure }
   | { kind: "ignored"; reason: string };
 
 export interface EventSummary {

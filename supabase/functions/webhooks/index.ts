@@ -5,12 +5,14 @@
 // 3. Grava o evento (sem dados pessoais) e responde 200 na hora.
 // 4. Normaliza e grava a venda em segundo plano (EdgeRuntime.waitUntil).
 //
-// POST /functions/v1/webhooks/_process (Authorization: Bearer <service_role>) reprocessa pendentes.
+// POST /functions/v1/webhooks/_process (Authorization: Bearer <service_role>, ou header
+// x-cron-secret do pg_cron a cada 5 min) reprocessa pendentes e avisa os checkouts com falha.
 
 import { getAdapter } from "../_shared/checkout/registry.ts";
 import { timingSafeEqual } from "../_shared/crypto.ts";
 import { errorMessage, log } from "../_shared/log.ts";
 import { createAdminClient } from "../_shared/supabase-admin.ts";
+import { notifyDueCheckoutFailures } from "./failures.ts";
 import { processPendingEvents, processWebhookEvent } from "./process.ts";
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
@@ -44,9 +46,19 @@ Deno.serve(async (req) => {
   if (provider === "_process") {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const auth = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-    if (!serviceKey || !timingSafeEqual(auth, serviceKey)) return json(401, { error: "unauthorized" });
-    const processed = await processPendingEvents(admin);
-    return json(200, { processed });
+    const cronSecret = req.headers.get("x-cron-secret");
+    const authorized = cronSecret
+      ? Boolean((await admin.rpc("service_check_cron_secret", { p_secret: cronSecret })).data)
+      : Boolean(serviceKey) && timingSafeEqual(auth, serviceKey);
+    if (!authorized) return json(401, { error: "unauthorized" });
+    try {
+      const processed = await processPendingEvents(admin);
+      const checkoutFailures = await notifyDueCheckoutFailures(admin);
+      return json(200, { processed, checkout_failures: checkoutFailures });
+    } catch (cause) {
+      log("error", "webhooks_process_failed", { error: errorMessage(cause) });
+      return json(500, { error: "internal_error" });
+    }
   }
 
   const adapter = provider ? getAdapter(provider) : null;
