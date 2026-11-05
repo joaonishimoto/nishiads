@@ -46,14 +46,14 @@ export const META_ACTION_METRICS: MetaActionMetric[] = [
   },
   {
     key: "initiate_checkout",
-    label: "Inícios de checkout",
-    hint: "evento InitiateCheckout do pixel",
+    label: "Inícios de checkout (Meta)",
+    hint: "evento InitiateCheckout do pixel que a Meta atribuiu ao anúncio; costuma ser menor que o real",
     types: [
       "omni_initiated_checkout",
       "initiate_checkout",
       "offsite_conversion.fb_pixel_initiate_checkout",
     ],
-    cost: { label: "Custo por início de checkout", hint: "gasto ÷ inícios de checkout" },
+    cost: { label: "Custo por início de checkout (Meta)", hint: "gasto ÷ inícios de checkout da Meta" },
   },
   {
     key: "add_payment_info",

@@ -156,7 +156,8 @@ function SourceCard({
           <CopyField value={CALL_EXAMPLE} label="chamada do cadastro" />
           <p className="text-xs text-muted-foreground">
             O id evita contar o mesmo cadastro duas vezes. Use outros nomes para outros eventos:{" "}
-            <code className="font-mono">teste</code>, <code className="font-mono">compra</code>,{" "}
+            <code className="font-mono">checkout</code>, <code className="font-mono">teste</code>,{" "}
+            <code className="font-mono">compra</code>,{" "}
             <code className="font-mono">lead</code>. Nos eventos depois do cadastro, mande também o
             usuário (<code className="font-mono">{"{ id: sessao.id, user: usuario.id }"}</code>): se
             o evento chegar sem a origem guardada, ele herda o anúncio do cadastro.
