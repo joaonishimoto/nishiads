@@ -21,6 +21,7 @@ import {
   type NotificationPreferences,
   type PreferencesPatch,
 } from "@/features/notifications/api";
+import { DailySummaryPanel } from "@/features/notifications/daily-summary-panel";
 import { describeUserAgent, pushSupport, PushPermissionDenied } from "@/features/notifications/push";
 import { friendlyError } from "@/lib/errors";
 import { formatDateTime, parseReais } from "@/lib/format";
@@ -32,6 +33,7 @@ export function NotificationsPage() {
       <SettingsNav />
       <ThisDevicePanel />
       <DevicesPanel />
+      <DailySummaryPanel />
       <PreferencesPanel />
     </div>
   );

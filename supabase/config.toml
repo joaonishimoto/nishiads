@@ -59,3 +59,7 @@ verify_jwt = false
 # Convite com senha inicial: valida o token e o papel (owner/admin) dentro da função e cria a conta com a service_role.
 [functions.members]
 verify_jwt = false
+
+# Chamada pelo pg_cron (header x-cron-secret) e pelo app (token do usuário, validado na função).
+[functions.daily-summary]
+verify_jwt = false
