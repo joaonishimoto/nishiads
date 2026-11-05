@@ -23,43 +23,54 @@ double_confirm_changes = true
 # Provedores de checkout não mandam JWT do Supabase: a função valida a assinatura de cada um.
 [functions.webhooks]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Valida o token do usuário dentro da função (funciona com as chaves novas do Supabase).
 [functions.push]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Retorno do Facebook Login não traz JWT; o início (POST) valida o token do usuário na função.
 [functions.meta-oauth]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Chamada pelo pg_cron (header x-cron-secret) e pelo app (token do usuário, validado na função).
 [functions.meta-sync]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Valida o token do usuário e o papel (owner/admin) dentro da função.
 [functions.meta-actions]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # App (token do usuário, validado na função): aprovar a pausa de um alerta e avaliar as regras.
 [functions.alerts]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Chamada pelo pg_cron (header x-cron-secret) e pelo app (token do usuário, validado na função).
 [functions.meta-capi]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Assistente de IA: valida o token do usuário e o vínculo com o workspace dentro da função.
 [functions.assistant]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Eventos do script nos sites rastreados: público, a chave da fonte vai no corpo.
 [functions.track]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Convite com senha inicial: valida o token e o papel (owner/admin) dentro da função e cria a conta com a service_role.
 [functions.members]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # Chamada pelo pg_cron (header x-cron-secret) e pelo app (token do usuário, validado na função).
 [functions.daily-summary]
 verify_jwt = false
+import_map = "./functions/deno.json"
