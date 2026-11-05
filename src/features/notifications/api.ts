@@ -151,6 +151,7 @@ export type PreferencesPatch = Partial<
     | "notify_alerts"
     | "notify_registrations"
     | "notify_trials"
+    | "notify_checkout_failures"
   >
 >;
 

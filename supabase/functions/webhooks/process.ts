@@ -4,6 +4,8 @@ import { errorMessage, log } from "../_shared/log.ts";
 import { deliverDueEvents } from "../_shared/meta/capi-delivery.ts";
 import { saleNotificationKind } from "../_shared/notify/messages.ts";
 import { notifySale } from "../_shared/notify/sale-notifications.ts";
+import { notifyDueCheckoutFailures } from "./failures.ts";
+import { integrationSecret } from "./secret.ts";
 
 const MAX_ATTEMPTS = 5;
 
@@ -15,23 +17,6 @@ type EventRow = {
   payload: unknown;
   attempts: number;
 };
-
-/** Segredo da integração do evento (alguns adapters usam a chave de API guardada nele). */
-async function integrationSecret(admin: SupabaseClient, integrationId: string | null): Promise<string | null> {
-  if (!integrationId) return null;
-  const { data: integration, error } = await admin
-    .from("checkout_integrations")
-    .select("webhook_secret_ref")
-    .eq("id", integrationId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!integration?.webhook_secret_ref) return null;
-  const { data, error: secretError } = await admin.rpc("service_read_secret", {
-    p_secret_id: integration.webhook_secret_ref,
-  });
-  if (secretError) throw new Error(secretError.message);
-  return (data as string | null) ?? null;
-}
 
 /** Normaliza um evento salvo e grava a venda. Idempotente: pode rodar de novo no mesmo evento. */
 export async function processWebhookEvent(admin: SupabaseClient, eventId: number): Promise<void> {
@@ -58,6 +43,30 @@ export async function processWebhookEvent(admin: SupabaseClient, eventId: number
         .update({ status: "ignored", error: result.reason, attempts, processed_at: new Date().toISOString() })
         .eq("id", event.id);
       log("info", "webhook_event_ignored", { eventId, reason: result.reason });
+      return;
+    }
+
+    if (result.kind === "failure") {
+      const { data: recorded, error: recordError } = await admin.rpc("service_record_checkout_failure", {
+        p_workspace_id: event.workspace_id,
+        p_checkout_integration_id: event.checkout_integration_id,
+        p_provider: event.provider,
+        p_failure: result.failure,
+      });
+      if (recordError) throw new Error(recordError.message);
+      await admin
+        .from("webhook_events")
+        .update({ status: "processed", error: null, attempts, processed_at: new Date().toISOString() })
+        .eq("id", event.id);
+      log("info", "webhook_checkout_failure_recorded", { eventId, kind: result.failure.kind, recorded });
+      // Checkout abandonado e cobrança recusada avisam já; cartão recusado espera (cron).
+      if (result.failure.delay_minutes === 0) {
+        try {
+          await notifyDueCheckoutFailures(admin);
+        } catch (cause) {
+          log("error", "checkout_failure_notify_failed", { eventId, error: errorMessage(cause) });
+        }
+      }
       return;
     }
 

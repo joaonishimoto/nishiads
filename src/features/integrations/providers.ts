@@ -73,7 +73,7 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
     steps: [
       "Na Stripe, abra Desenvolvedores › Webhooks e clique em Adicionar destino. Em Eventos de, deixe Sua conta.",
       {
-        text: "Selecione os 6 eventos abaixo (copie cada nome e cole na busca de eventos) e clique em Continuar:",
+        text: "Selecione os 10 eventos abaixo (copie cada nome e cole na busca de eventos) e clique em Continuar:",
         copyItems: [
           "checkout.session.completed",
           "checkout.session.async_payment_succeeded",
@@ -81,6 +81,10 @@ export const PROVIDERS: Record<Exclude<CheckoutProvider, "generic">, ProviderInf
           "invoice.paid",
           "charge.refunded",
           "charge.dispute.created",
+          "checkout.session.expired",
+          "setup_intent.setup_failed",
+          "payment_intent.payment_failed",
+          "invoice.payment_failed",
         ],
       },
       "Em Tipo de destino, escolha Endpoint de webhook e clique em Continuar.",

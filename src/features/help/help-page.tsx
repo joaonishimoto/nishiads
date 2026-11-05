@@ -652,11 +652,13 @@ export function HelpPage() {
           >
             <Steps>
               <li>
-                Na Stripe, crie um destino de webhook (Endpoint de webhook) com a URL do card e os 6
+                Na Stripe, crie um destino de webhook (Endpoint de webhook) com a URL do card e os 10
                 eventos: <C>checkout.session.completed</C>,{" "}
                 <C>checkout.session.async_payment_succeeded</C>,{" "}
                 <C>checkout.session.async_payment_failed</C>, <C>invoice.paid</C>,{" "}
-                <C>charge.refunded</C> e <C>charge.dispute.created</C>.
+                <C>charge.refunded</C>, <C>charge.dispute.created</C> e, para o aviso de checkout
+                com falha, <C>checkout.session.expired</C>, <C>setup_intent.setup_failed</C>,{" "}
+                <C>payment_intent.payment_failed</C> e <C>invoice.payment_failed</C>.
               </li>
               <li>
                 Copie o Segredo de assinatura (<C>whsec_...</C>).

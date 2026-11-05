@@ -337,6 +337,7 @@ type NotificationPreferencesRow = {
   notify_alerts: boolean;
   notify_registrations: boolean;
   notify_trials: boolean;
+  notify_checkout_failures: boolean;
   updated_at: string;
 };
 

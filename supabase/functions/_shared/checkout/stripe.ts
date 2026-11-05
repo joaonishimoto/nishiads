@@ -9,15 +9,28 @@
  * Teste grátis: o checkout de assinatura sem cobrança (ou a primeira fatura de valor zero)
  * vira um registro "trialing" identificado pela assinatura (sub_...). A primeira fatura paga
  * da assinatura converte o teste.
+ *
+ * Checkout com falha (vira um aviso, não uma venda):
+ *   setup_intent.setup_failed / payment_intent.payment_failed → cartão recusado no checkout
+ *   checkout.session.expired → checkout aberto e não concluído
+ *   invoice.payment_failed → cobrança recusada no fim do teste ou na renovação
  */
 import { hashEmail, hmacHex, timingSafeEqual } from "../crypto.ts";
 import { cleanText } from "../values.ts";
 import { clickIdsFrom } from "./click-ids.ts";
-import type { CheckoutAdapter, NormalizeResult, NormalizedSale, SaleStatus } from "./types.ts";
+import type {
+  CheckoutAdapter,
+  NormalizeResult,
+  NormalizedCheckoutFailure,
+  NormalizedSale,
+  SaleStatus,
+} from "./types.ts";
 
 const SIGNATURE_TOLERANCE_SECONDS = 5 * 60;
 const STRIPE_API = "https://api.stripe.com/v1";
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
+/** Cartão recusado espera esse tempo antes do aviso: muita gente acerta o cartão logo depois. */
+export const DECLINE_DELAY_MINUTES = 20;
 
 type Obj = Record<string, unknown>;
 
@@ -338,6 +351,244 @@ async function fromDispute(dispute: Obj, apiKey: string | null): Promise<Normali
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Checkout com falha
+// ---------------------------------------------------------------------------
+
+function failure(
+  partial: Partial<NormalizedCheckoutFailure> & Pick<NormalizedCheckoutFailure, "kind" | "external_ref">,
+): NormalizeResult {
+  return {
+    kind: "failure",
+    failure: {
+      session_ref: null,
+      subscription_ref: null,
+      amount_cents: 0,
+      currency: "BRL",
+      external_product_id: null,
+      product_name: null,
+      customer_email_hash: null,
+      person_ref: null,
+      reason_code: null,
+      reason_message: null,
+      utm_source: null,
+      utm_medium: null,
+      utm_campaign: null,
+      utm_content: null,
+      utm_term: null,
+      started_at: null,
+      occurred_at: null,
+      delay_minutes: 0,
+      ...partial,
+    },
+  };
+}
+
+/** Nome do produto quando a API não responde: o plano do metadata (ex.: annual). */
+async function sessionProductSafe(session: Obj, apiKey: string | null) {
+  try {
+    return await sessionProduct(session, apiKey);
+  } catch {
+    return { name: cleanText(obj(session.metadata)?.plan, 200), id: null };
+  }
+}
+
+/** O que a Checkout Session diz sobre quem tentou: e-mail, pessoa, UTMs, produto e valor. */
+async function sessionContext(session: Obj, apiKey: string | null) {
+  const product = await sessionProductSafe(session, apiKey);
+  const details = obj(session.customer_details);
+  return {
+    session_ref: str(session.id),
+    amount_cents: cents(session.amount_total) ?? 0,
+    currency: currencyOf(session.currency),
+    external_product_id: product.id,
+    product_name: product.name ?? cleanText(obj(session.metadata)?.plan, 200),
+    customer_email_hash: await emailHash(session, str(details?.email) ?? str(session.customer_email)),
+    person_ref: personRef(session.metadata),
+    utm_source: null,
+    utm_medium: null,
+    utm_campaign: null,
+    utm_content: null,
+    utm_term: null,
+    ...utmsFrom(session.metadata),
+  };
+}
+
+async function fromExpiredSession(session: Obj, apiKey: string | null): Promise<NormalizeResult> {
+  const id = str(session.id);
+  if (!id) throw new Error("Checkout Session da Stripe sem id.");
+  const mode = str(session.mode);
+  if (mode !== "payment" && mode !== "subscription") return ignored(`Checkout Session em modo ${mode ?? "desconhecido"}.`);
+  return failure({
+    kind: "expired",
+    external_ref: id,
+    ...(await sessionContext(session, apiKey)),
+    started_at: unixToIso(session.created),
+    occurred_at: unixToIso(session.expires_at) ?? new Date().toISOString(),
+  });
+}
+
+/**
+ * A recusa no checkout de assinatura com teste (SetupIntent) não traz metadata nem
+ * cliente. A Checkout Session aberta com o mesmo e-mail diz quem é e de qual anúncio veio.
+ */
+async function openSessionByEmail(apiKey: string, emailHash: string, at: number): Promise<Obj | null> {
+  const list = await stripeGet(apiKey, "/checkout/sessions", {
+    status: "open",
+    "created[gte]": String(Math.floor(at / 1000) - 24 * 3600),
+    limit: "100",
+  });
+  const sessions = Array.isArray(list.data) ? list.data.map(obj).filter((s): s is Obj => s !== null) : [];
+  let best: Obj | null = null;
+  for (const session of sessions) {
+    const email = str(obj(session.customer_details)?.email) ?? str(session.customer_email);
+    if ((await hashEmail(email)) !== emailHash) continue;
+    if (!best || Number(session.created) > Number(best.created)) best = session;
+  }
+  return best;
+}
+
+function errorReason(error: Obj | null) {
+  return {
+    reason_code: cleanText(error?.decline_code, 100) ?? cleanText(error?.code, 100),
+    reason_message: cleanText(error?.message, 500),
+  };
+}
+
+async function fromSetupFailed(seti: Obj, apiKey: string | null, eventAt: number): Promise<NormalizeResult> {
+  const id = str(seti.id);
+  if (!id) throw new Error("SetupIntent da Stripe sem id.");
+  const error = obj(seti.last_setup_error);
+  const email = str(obj(obj(error?.payment_method)?.billing_details)?.email);
+  const hash = await emailHash(seti, email);
+  let context: Partial<NormalizedCheckoutFailure> = {
+    customer_email_hash: hash,
+    person_ref: personRef(seti.metadata),
+    ...utmsFrom(seti.metadata),
+  };
+  if (apiKey && hash) {
+    try {
+      const session = await openSessionByEmail(apiKey, hash, eventAt);
+      if (session) context = { ...(await sessionContext(session, apiKey)), customer_email_hash: hash };
+    } catch {
+      // Sem a sessão, o aviso sai sem produto e sem origem.
+    }
+  }
+  return failure({
+    kind: "declined",
+    external_ref: id,
+    ...context,
+    ...errorReason(error),
+    started_at: new Date(eventAt).toISOString(),
+    occurred_at: new Date(eventAt).toISOString(),
+    delay_minutes: DECLINE_DELAY_MINUTES,
+  });
+}
+
+/** PaymentIntent de fatura de assinatura: a falha entra pelo invoice.payment_failed. */
+function isInvoicePayment(pi: Obj): boolean {
+  const orderRef = str(obj(pi.payment_details)?.order_reference);
+  return Boolean(idOf(pi.invoice)) || Boolean(orderRef?.startsWith("in_")) || /^Subscription /.test(str(pi.description) ?? "");
+}
+
+async function fromPaymentFailed(pi: Obj, apiKey: string | null, eventAt: number): Promise<NormalizeResult> {
+  const id = str(pi.id);
+  if (!id) throw new Error("PaymentIntent da Stripe sem id.");
+  if (isInvoicePayment(pi)) return ignored("Recusa de fatura: entra pelo invoice.payment_failed.");
+  const error = obj(pi.last_payment_error);
+  const email = str(obj(obj(error?.payment_method)?.billing_details)?.email) ?? str(pi.receipt_email);
+  let context: Partial<NormalizedCheckoutFailure> = {
+    amount_cents: cents(pi.amount) ?? 0,
+    currency: currencyOf(pi.currency),
+    customer_email_hash: await emailHash(pi, email),
+    person_ref: personRef(pi.metadata),
+    product_name: cleanText(obj(pi.metadata)?.product_name, 200) ?? cleanText(obj(pi.metadata)?.plan, 200),
+    ...utmsFrom(pi.metadata),
+  };
+  if (apiKey) {
+    try {
+      const session = firstOfList(await stripeGet(apiKey, "/checkout/sessions", { payment_intent: id, limit: "1" }));
+      if (session) {
+        const fromSession = await sessionContext(session, apiKey);
+        context = {
+          ...fromSession,
+          customer_email_hash: fromSession.customer_email_hash ?? context.customer_email_hash,
+          person_ref: fromSession.person_ref ?? context.person_ref,
+        };
+      }
+    } catch {
+      // Sem a sessão, fica com o que o PaymentIntent traz.
+    }
+  }
+  return failure({
+    kind: "declined",
+    external_ref: id,
+    ...context,
+    ...errorReason(error),
+    started_at: new Date(eventAt).toISOString(),
+    occurred_at: new Date(eventAt).toISOString(),
+    delay_minutes: DECLINE_DELAY_MINUTES,
+  });
+}
+
+/** Motivo da recusa de uma fatura (basil+: Invoice Payments → PaymentIntent). Melhor esforço. */
+async function invoiceDeclineReason(invoice: Obj, apiKey: string | null) {
+  let piId = idOf(invoice.payment_intent);
+  try {
+    if (!piId && apiKey && str(invoice.id)) {
+      const payment = firstOfList(await stripeGet(apiKey, "/invoice_payments", { invoice: String(invoice.id), limit: "1" }));
+      piId = idOf(obj(payment?.payment)?.payment_intent);
+    }
+    if (piId && apiKey) return errorReason(obj((await stripeGet(apiKey, `/payment_intents/${piId}`, {})).last_payment_error));
+  } catch {
+    // A chave pode não ter leitura de PaymentIntents: o aviso sai sem o motivo.
+  }
+  return { reason_code: null, reason_message: null };
+}
+
+async function fromInvoiceFailed(invoice: Obj, apiKey: string | null, eventAt: number): Promise<NormalizeResult> {
+  const id = str(invoice.id);
+  if (!id) throw new Error("Fatura da Stripe sem id.");
+  const amount = cents(invoice.amount_due) ?? 0;
+  if (amount === 0) return ignored("Fatura de valor zero.");
+  const parent = obj(invoice.parent);
+  const subscriptionDetails = obj(parent?.subscription_details) ?? obj(invoice.subscription_details);
+  const subscriptionId = idOf(subscriptionDetails?.subscription) ?? idOf(invoice.subscription);
+  if (!subscriptionId) return ignored("Fatura avulsa recusada.");
+
+  let tracking: Partial<NormalizedCheckoutFailure> = {};
+  try {
+    tracking = await subscriptionTracking(subscriptionDetails?.metadata, subscriptionId, apiKey);
+  } catch {
+    tracking = { ...utmsFrom(subscriptionDetails?.metadata), person_ref: personRef(subscriptionDetails?.metadata) };
+  }
+  const { fbc: _fbc, fbp: _fbp, client_user_agent: _ua, ...origin } = tracking as Record<string, unknown>;
+  const product = invoiceProduct(invoice);
+  return failure({
+    kind: invoice.billing_reason === "subscription_create" ? "declined" : "renewal_failed",
+    external_ref: id,
+    subscription_ref: subscriptionId,
+    ...(origin as Partial<NormalizedCheckoutFailure>),
+    amount_cents: amount,
+    currency: currencyOf(invoice.currency),
+    external_product_id: product.id,
+    product_name: product.name,
+    customer_email_hash: await emailHash(invoice, str(invoice.customer_email)),
+    ...(await invoiceDeclineReason(invoice, apiKey)),
+    started_at: new Date(eventAt).toISOString(),
+    occurred_at: new Date(eventAt).toISOString(),
+  });
+}
+
+/** A Checkout Session foi concluída (a pessoa acertou o cartão depois da recusa)? */
+export async function stripeSessionCompleted(secret: string | null, sessionId: string): Promise<boolean | null> {
+  const apiKey = parseStripeSecret(secret)?.apiKey;
+  if (!apiKey) return null;
+  const session = await stripeGet(apiKey, `/checkout/sessions/${encodeURIComponent(sessionId)}`, {});
+  return session.status === "complete";
+}
+
 const PII_KEYS = [
   "customer_details",
   "billing_details",
@@ -350,7 +601,25 @@ const PII_KEYS = [
   "collected_information",
   "evidence",
   "payment_method_details",
+  "receipt_email",
 ];
+
+/** E-mail que a recusa traz no cartão (last_setup_error/last_payment_error.payment_method). */
+function errorEmail(object: Obj): string | null {
+  for (const key of ["last_setup_error", "last_payment_error"]) {
+    const email = str(obj(obj(obj(object[key])?.payment_method)?.billing_details)?.email);
+    if (email) return email;
+  }
+  return null;
+}
+
+/** Tira o cartão (com nome, endereço e e-mail) do erro da recusa; fica só o motivo. */
+function withoutPaymentMethod(error: unknown): unknown {
+  const e = obj(error);
+  if (!e) return error;
+  const { payment_method: _pm, source: _source, ...rest } = e;
+  return rest;
+}
 
 export const stripeAdapter: CheckoutAdapter = {
   provider: "stripe",
@@ -388,8 +657,16 @@ export const stripeAdapter: CheckoutAdapter = {
     if (!event || !data || !object) return payload;
     const copy: Obj = { ...object };
     const details = obj(copy.customer_details);
-    const email = str(details?.email) ?? str(copy.customer_email) ?? str(obj(copy.billing_details)?.email);
+    const email =
+      str(details?.email) ??
+      str(copy.customer_email) ??
+      str(obj(copy.billing_details)?.email) ??
+      errorEmail(copy) ??
+      str(copy.receipt_email);
     for (const key of PII_KEYS) delete copy[key];
+    for (const key of ["last_setup_error", "last_payment_error"]) {
+      if (key in copy) copy[key] = withoutPaymentMethod(copy[key]);
+    }
     if ("customer_email" in copy || email) {
       delete copy.customer_email;
       copy.customer_email_sha256 = await hashEmail(email);
@@ -413,6 +690,7 @@ export const stripeAdapter: CheckoutAdapter = {
     const object = obj(obj(event?.data)?.object);
     if (!type || !object) throw new Error("Evento da Stripe fora do formato esperado (sem type ou data.object).");
     const apiKey = parseStripeSecret(context?.secret ?? null)?.apiKey ?? null;
+    const eventAt = unixToMs(event?.created);
 
     switch (type) {
       case "checkout.session.completed":
@@ -425,6 +703,14 @@ export const stripeAdapter: CheckoutAdapter = {
         return fromRefundedCharge(object);
       case "charge.dispute.created":
         return fromDispute(object, apiKey);
+      case "checkout.session.expired":
+        return fromExpiredSession(object, apiKey);
+      case "setup_intent.setup_failed":
+        return fromSetupFailed(object, apiKey, eventAt);
+      case "payment_intent.payment_failed":
+        return fromPaymentFailed(object, apiKey, eventAt);
+      case "invoice.payment_failed":
+        return fromInvoiceFailed(object, apiKey, eventAt);
       default:
         return ignored(`Evento ${type} não altera vendas.`);
     }

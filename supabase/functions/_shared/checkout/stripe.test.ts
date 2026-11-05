@@ -305,3 +305,144 @@ describe("Stripe: pessoa que comprou", () => {
     expect(invoice.kind === "sale" && invoice.sale.person_ref).toBe("u-456");
   });
 });
+
+describe("Stripe: checkout com falha", () => {
+  const at = 1793656061; // 2026-11-02T21:47:41Z
+
+  it("checkout expirado vira aviso com a pessoa, o valor e o produto do metadata", async () => {
+    const payload = await stripeAdapter.redact({
+      ...event("checkout.session.expired", {
+        id: "cs_live_1",
+        mode: "subscription",
+        status: "expired",
+        amount_total: 0,
+        currency: "brl",
+        created: at - 24 * 3600,
+        expires_at: at,
+        customer_details: { email: "Ana@Exemplo.com", name: "Ana" },
+        metadata: { plan: "annual", user_id: "u-1", product_name: "Drinfy Anual" },
+      }),
+      created: at,
+    });
+    expect(JSON.stringify(payload)).not.toContain("Exemplo");
+    const result = await stripeAdapter.normalize(payload, { secret: null });
+    expect(result.kind).toBe("failure");
+    if (result.kind !== "failure") return;
+    expect(result.failure).toMatchObject({
+      kind: "expired",
+      external_ref: "cs_live_1",
+      session_ref: "cs_live_1",
+      person_ref: "u-1",
+      product_name: "Drinfy Anual",
+      customer_email_hash: await sha256Hex("ana@exemplo.com"),
+      started_at: new Date((at - 24 * 3600) * 1000).toISOString(),
+      delay_minutes: 0,
+    });
+  });
+
+  it("cartão recusado no teste: acha a Checkout Session aberta pelo e-mail e espera 20 min", async () => {
+    mockStripeApi({
+      "/v1/checkout/sessions": {
+        data: [
+          { id: "cs_outra", status: "open", created: at - 60, customer_details: { email: "outra@x.com" }, metadata: {} },
+          {
+            id: "cs_ana",
+            status: "open",
+            created: at - 120,
+            amount_total: 0,
+            currency: "brl",
+            customer_details: { email: "ana@exemplo.com" },
+            metadata: { plan: "annual", user_id: "u-1", product_name: "Drinfy Anual", utm_content: "Vídeo|120222" },
+          },
+        ],
+      },
+    });
+    const payload = await stripeAdapter.redact({
+      ...event("setup_intent.setup_failed", {
+        id: "seti_1",
+        customer: null,
+        metadata: {},
+        last_setup_error: {
+          code: "card_declined",
+          decline_code: "insufficient_funds",
+          message: "Your card has insufficient funds.",
+          payment_method: { billing_details: { email: "ana@exemplo.com", name: "Ana" }, card: { last4: "4242" } },
+        },
+      }),
+      created: at,
+    });
+    expect(JSON.stringify(payload)).not.toContain("4242");
+    expect(JSON.stringify(payload)).not.toContain("ana@");
+    const result = await stripeAdapter.normalize(payload, { secret: SECRET });
+    expect(result.kind).toBe("failure");
+    if (result.kind !== "failure") return;
+    expect(result.failure).toMatchObject({
+      kind: "declined",
+      external_ref: "seti_1",
+      session_ref: "cs_ana",
+      person_ref: "u-1",
+      utm_content: "Vídeo|120222",
+      reason_code: "insufficient_funds",
+      delay_minutes: 20,
+    });
+  });
+
+  it("recusa do PaymentIntent de fatura fica para o invoice.payment_failed", async () => {
+    const result = await stripeAdapter.normalize(
+      event("payment_intent.payment_failed", {
+        id: "pi_1",
+        description: "Subscription update",
+        payment_details: { order_reference: "in_1" },
+        last_payment_error: { code: "incorrect_number" },
+      }),
+      { secret: null },
+    );
+    expect(result.kind).toBe("ignored");
+  });
+
+  it("Pix não pago no checkout avulso vira recusa com o metadata do PaymentIntent", async () => {
+    const result = await stripeAdapter.normalize(
+      event("payment_intent.payment_failed", {
+        id: "pi_2",
+        amount: 6700,
+        currency: "brl",
+        metadata: { plan: "annual_pix", user_id: "u-2" },
+        last_payment_error: { code: "payment_intent_payment_attempt_expired" },
+      }),
+      { secret: null },
+    );
+    expect(result).toMatchObject({
+      kind: "failure",
+      failure: { kind: "declined", amount_cents: 6700, person_ref: "u-2", product_name: "annual_pix" },
+    });
+  });
+
+  it("cobrança recusada no fim do teste vira renewal_failed com a assinatura", async () => {
+    mockStripeApi({ "/v1/invoice_payments": { data: [] } });
+    const result = await stripeAdapter.normalize(
+      event("invoice.payment_failed", {
+        id: "in_1",
+        amount_due: 6700,
+        currency: "brl",
+        billing_reason: "subscription_cycle",
+        parent: {
+          subscription_details: { subscription: "sub_1", metadata: { user_id: "u-3", utm_campaign: "BF|1202" } },
+        },
+      }),
+      { secret: SECRET },
+    );
+    expect(result).toMatchObject({
+      kind: "failure",
+      failure: {
+        kind: "renewal_failed",
+        external_ref: "in_1",
+        subscription_ref: "sub_1",
+        amount_cents: 6700,
+        person_ref: "u-3",
+        utm_campaign: "BF|1202",
+        delay_minutes: 0,
+      },
+    });
+    if (result.kind === "failure") expect(result.failure).not.toHaveProperty("fbp");
+  });
+});
